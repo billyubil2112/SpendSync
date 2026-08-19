@@ -50,6 +50,18 @@ Same steps: new project → deploy from GitHub → Node app. Railway doesn't sle
 3. Name it *SpendSync* → **Add**.
 4. It now opens full-screen like an app with no browser chrome. 💯
 
+## 🗝 Login & privacy
+
+SpendSync now has simple accounts:
+
+- Log in with **any email + a 6-digit PIN** (e.g. `020222`).
+- **First time?** The account is created automatically — just type your email + PIN.
+- Each email has its **own isolated data**, synced across all devices you log in on.
+- Your pre-login data is automatically moved into the account you log in with first.
+- Log out anytime with the 🚪 button in the top bar. PINs are stored salted + hashed.
+
+> The old "anyone with the URL sees everything" warning no longer applies — everyone now needs their own email + PIN to see anything.
+
 ## 🧾 Downloading summaries
 
 Go to the **Summary** tab, pick a month with the arrows, then tap:
@@ -65,4 +77,4 @@ Go to the **Summary** tab, pick a month with the arrows, then tap:
 
 ## 🔒 Note
 
-There is no login/PIN. Anyone with your app URL can see the data, so keep the link private (or add a PIN later).
+PINs are hashed (never stored in plain text) and login attempts are rate-limited after 5 failures. For a personal tracker this is plenty — but don't use a PIN you also use for banking.

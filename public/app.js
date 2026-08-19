@@ -152,12 +152,21 @@ function burst(scale) {
 
 /* ============================== API ============================== */
 
+let token = localStorage.getItem('ss_token');
+let currentUser = null;
+
 async function api(method, path, body) {
+  const headers = { 'Content-Type': 'application/json' };
+  if (token) headers['Authorization'] = 'Bearer ' + token;
   const res = await fetch(path, {
     method,
-    headers: { 'Content-Type': 'application/json' },
+    headers,
     body: body ? JSON.stringify(body) : undefined
   });
+  if (res.status === 401) {
+    handleLogout(false);
+    throw new Error('Session expired. Please log in again.');
+  }
   if (!res.ok) {
     const e = await res.json().catch(() => ({}));
     throw new Error(e.error || 'Something went wrong');
@@ -165,10 +174,85 @@ async function api(method, path, body) {
   return res.json();
 }
 
+/* ============================== LOGIN ============================== */
+
+function showLogin() {
+  $('#splash').style.display = 'none';
+  $('#offline').style.display = 'none';
+  $('#app').style.display = 'none';
+  $('#login').style.display = 'flex';
+}
+
+function hideLogin() {
+  $('#login').style.display = 'none';
+}
+
+function handleLogout(notify) {
+  token = null;
+  currentUser = null;
+  localStorage.removeItem('ss_token');
+  state = { budgets: {}, expenses: [], pots: [] };
+  $('#user-chip').textContent = '—';
+  showLogin();
+  if (notify) toast('Logged out', '👋');
+}
+
+async function doLogout() {
+  try { await api('POST', '/api/logout'); } catch (e) { /* ignore */ }
+  handleLogout(true);
+}
+
+async function doLogin(ev) {
+  ev.preventDefault();
+  const email = $('#login-email').value.trim();
+  const pin = $('#login-pin').value.trim();
+  const btn = $('#login-btn');
+  const errEl = $('#login-error');
+  errEl.textContent = '';
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { errEl.textContent = 'Enter a valid email.'; sfx.error(); return; }
+  if (!/^\d{6}$/.test(pin)) { errEl.textContent = 'PIN must be 6 digits.'; sfx.error(); return; }
+  btn.disabled = true;
+  btn.textContent = 'Logging in…';
+  try {
+    const res = await fetch('/api/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, pin })
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      errEl.textContent = data.error || 'Login failed';
+      btn.disabled = false;
+      btn.textContent = '🔓 Log in';
+      sfx.error();
+      return;
+    }
+    token = data.token;
+    currentUser = data.email;
+    localStorage.setItem('ss_token', token);
+    $('#user-chip').textContent = currentUser;
+    hideLogin();
+    state = await api('GET', '/api/state');
+    $('#app').style.display = 'block';
+    renderAll();
+    sfx.success();
+    if (data.newUser) { toast('Account created — welcome!', '🎉'); burst(1.2); }
+    else toast('Welcome back!', '👋');
+  } catch (err) {
+    errEl.textContent = 'Connection error. Is the server awake?';
+    btn.disabled = false;
+    btn.textContent = '🔓 Log in';
+  }
+}
+
 /* ============================== BOOTSTRAP ============================== */
 
 async function loadState() {
   try {
+    if (!token) { showLogin(); return; }
+    const sess = await api('GET', '/api/session');
+    currentUser = sess.email;
+    $('#user-chip').textContent = currentUser;
     state = await api('GET', '/api/state');
     $('#splash').style.display = 'none';
     $('#app').style.display = 'block';
@@ -791,6 +875,9 @@ function setupEvents() {
   });
 
   $('#retry-btn').addEventListener('click', () => { $('#offline').style.display = 'none'; $('#splash').style.display = 'flex'; loadState(); });
+
+  $('#login-form').addEventListener('submit', doLogin);
+  $('#logout-btn').addEventListener('click', doLogout);
 
   $('#download-csv').addEventListener('click', downloadCSV);
   $('#download-report').addEventListener('click', downloadReport);

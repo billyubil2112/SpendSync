@@ -74,6 +74,18 @@ body {
 }
 @keyframes spin { to { transform: rotate(360deg); } }
 
+/* ---------- Login ---------- */
+.login-card { width: 100%; max-width: 400px; padding: 34px; text-align: center; }
+.login-card h1 { font-size: 1.9rem; margin: 10px 0 6px; }
+.login-card h1 b { background: var(--grad); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.login-sub { color: var(--muted); font-size: 0.9rem; margin: 0 auto 20px; max-width: 300px; }
+.login-card .field { text-align: left; }
+.login-error { color: var(--danger); font-size: 0.85rem; font-weight: 700; min-height: 18px; margin-bottom: 12px; }
+.login-btn { width: 100%; justify-content: center; font-size: 1rem; padding: 14px; }
+.login-btn:disabled { opacity: 0.6; cursor: wait; }
+
+.user-chip { max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
 /* ---------- Layout ---------- */
 #app { max-width: 1080px; margin: 0 auto; padding: 16px 16px 120px; position: relative; z-index: 1; }
 
