@@ -4,7 +4,7 @@
   --glass-strong: rgba(255, 255, 255, 0.2);
   --border: rgba(255, 255, 255, 0.14);
   --text: #f4f7ff;
-  --muted: rgba(244, 247, 255, 0.6);
+  --muted: rgba(244, 247, 255, 0.74);
   --accent: #34e0a1;
   --accent2: #7c6cff;
   --accent3: #ff6b9d;
@@ -28,7 +28,7 @@ body {
 }
 
 /* ---------- Background ---------- */
-.bg, .bg-img, .bg-tint, .bg-aurora { position: fixed; inset: 0; pointer-events: none; }
+.bg, .bg-img, .bg-tint, .bg-aurora { position: fixed; inset: 0; pointer-events: none; z-index: -1; }
 .bg-img { background-size: cover; background-position: center; transform: scale(1.05); filter: blur(2px) saturate(1.1); }
 .bg-tint { background: linear-gradient(160deg, rgba(8, 12, 28, 0.82), rgba(14, 10, 34, 0.9) 55%, rgba(8, 16, 30, 0.86)); }
 .bg-aurora {
@@ -75,7 +75,7 @@ body {
 @keyframes spin { to { transform: rotate(360deg); } }
 
 /* ---------- Layout ---------- */
-#app { max-width: 1080px; margin: 0 auto; padding: 16px 16px 120px; }
+#app { max-width: 1080px; margin: 0 auto; padding: 16px 16px 120px; position: relative; z-index: 1; }
 
 .topbar {
   display: flex; align-items: center; justify-content: space-between;
@@ -139,6 +139,7 @@ body {
   content: ""; position: absolute; inset: -60% -30% auto auto; width: 420px; height: 420px;
   background: radial-gradient(circle, rgba(124,108,255,0.25), transparent 65%);
   animation: aurora 12s ease-in-out infinite alternate;
+  pointer-events: none;
 }
 .hero-label { color: var(--muted); font-size: 0.85rem; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; }
 .hero-amount { font-size: 2.6rem; font-weight: 800; letter-spacing: -1.5px; margin: 6px 0 12px; }
@@ -223,8 +224,8 @@ body {
 .exp-main { flex: 1; min-width: 0; }
 .exp-name { font-weight: 700; font-size: 0.98rem; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .exp-tag { font-size: 0.68rem; font-weight: 700; padding: 2px 9px; border-radius: 999px; letter-spacing: 0.4px; text-transform: uppercase; }
-.exp-meta { font-size: 0.8rem; color: var(--muted); margin-top: 3px; }
-.exp-notes { font-size: 0.8rem; color: var(--muted); font-style: italic; }
+.exp-meta { font-size: 0.8rem; color: rgba(244,247,255,0.85); margin-top: 3px; }
+.exp-notes { font-size: 0.8rem; color: rgba(244,247,255,0.7); font-style: italic; }
 .exp-amount { font-weight: 800; font-size: 1.05rem; white-space: nowrap; }
 .exp-actions { display: flex; gap: 6px; }
 .mini-btn {
@@ -274,6 +275,7 @@ body {
 .pot-card::before {
   content: ""; position: absolute; inset: 0; opacity: 0.12;
   background: radial-gradient(300px 200px at 80% -10%, var(--potc, #7c6cff), transparent 70%);
+  pointer-events: none;
 }
 .pot-head { display: flex; align-items: center; justify-content: space-between; position: relative; }
 .pot-emoji { font-size: 2rem; }
