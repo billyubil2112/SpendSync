@@ -50,7 +50,7 @@ function today() {
   return new Date(d.getFullYear(), d.getMonth(), d.getDate());
 }
 
-function monthKey(dateStr) { return dateStr.slice(0, 7); }
+function monthKey(d) { return (typeof d === 'string' ? d : iso(d)).slice(0, 7); }
 
 function daysInMonth(key) {
   const [y, m] = key.split('-').map(Number);
