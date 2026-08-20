@@ -1,6 +1,6 @@
 # 💸 SpendSync
 
-A fun, interactive budget tracker for the web — track spending, visualise it with charts, chase saving goals, and download monthly reports. Built to live on a free host so all your devices stay in sync (great as an iPhone Home Screen shortcut).
+A fun, interactive budget tracker that runs **entirely in your browser** and stores all data in your device's **localStorage** — no server, no accounts, nothing to restart, and nothing ever disappears. Host it free on GitHub Pages and add it to your iPhone home screen like an app.
 
 ## ✨ Features
 
@@ -12,69 +12,51 @@ A fun, interactive budget tracker for the web — track spending, visualise it w
 - **Saving pots 🏺** — savings goals with progress bars; add, fund, edit, delete
 - **Monthly summary** — stats per month + download as **CSV** or a formatted **report**
 - **Fun & interactive** — confetti bursts, sound effects (toggleable), live clock, glassmorphism UI, Unsplash background
-- **Autosync** — all data lives on the server, so every device sees the same numbers
+- **No backend** — data is saved in your browser's localStorage, so it stays on your device forever
+
+## 🗂 How storage works
+
+Everything is saved under one localStorage key (`spendsync_data_v2`) on the device you use. That means:
+
+- Your data **persists** across reloads, restarts, and redeploys.
+- Data is **per device/browser** — there is no cross-device sync (that's the trade-off for never losing data).
+- Clearing the site's data in your browser settings **erases your budget** — so use the Summary tab to download backups.
 
 ## 🚀 Run locally
 
+No install needed — just open `index.html` in a browser. Or serve the folder:
+
 ```bash
-npm install
-npm start
+npx serve .
 ```
 
-Open http://localhost:3000
+## 🌍 Host free on GitHub Pages (never sleeps, never loses data)
 
-Data is stored in `data.json` (created automatically).
+1. Push this folder to a GitHub repo (this repo is already set up: `.nojekyll` + files at the root).
+2. Go to the repo **Settings → Pages**.
+3. Source: **Deploy from a branch**, branch `main`, folder `/ (root)`. Save.
+4. Your app is live at `https://<username>.github.io/<repo>/` after ~1 min.
 
-## ☁️ Deploy online (free, with autosync)
-
-### Option A — Render (easiest)
-
-1. Push this folder to a GitHub repo.
-2. Go to [render.com](https://render.com) → **New** → **Web Service**.
-3. Connect your repo. Render auto-detects Node.
-   - Build command: `npm install`
-   - Start command: `npm start`
-   - Plan: Free
-4. Deploy, then open the `https://your-app.onrender.com` link. Done!
-
-> ⚠️ Free plans sleep after ~15 min idle and take ~30–60s to wake on first load. The app shows a "waking up" screen with a Retry button, so just wait a moment.
-
-### Option B — Railway
-
-Same steps: new project → deploy from GitHub → Node app. Railway doesn't sleep on free tier.
+Because there's no server, there's nothing to wake up, restart, or pay for — and your data never gets wiped.
 
 ## 📱 Add to your iPhone home screen
 
 1. Open the app in **Safari** (Chrome won't let you add to home screen).
 2. Tap the **Share** button → **Add to Home Screen**.
 3. Name it *SpendSync* → **Add**.
-4. It now opens full-screen like an app with no browser chrome. 💯
+4. It opens full-screen like an app, and the icon stays on your home screen.
 
-## 🗝 Login & privacy
+> Keep in mind: data is stored in the browser, so use the same browser/device for the same budget. On the iPhone shortcut, that's Safari — it persists there.
 
-SpendSync now has simple accounts:
+## 🧾 Downloading backups
 
-- Log in with **any email + a 6-digit PIN** (e.g. `020222`).
-- **First time?** The account is created automatically — just type your email + PIN.
-- Each email has its **own isolated data**, synced across all devices you log in on.
-- Your pre-login data is automatically moved into the account you log in with first.
-- Log out anytime with the 🚪 button in the top bar. PINs are stored salted + hashed.
-
-> The old "anyone with the URL sees everything" warning no longer applies — everyone now needs their own email + PIN to see anything.
-
-## 🧾 Downloading summaries
-
-Go to the **Summary** tab, pick a month with the arrows, then tap:
+Go to the **Summary** tab, pick a month, then tap:
 - **CSV** — raw data for Excel/Sheets
 - **Report** — a formatted text summary with stats + transactions
 
 ## 🛠 Tech
 
-- Node.js + Express (backend + JSON file storage)
-- Vanilla HTML/CSS/JS frontend
+- Vanilla HTML/CSS/JS (no frameworks, no build step)
 - Chart.js + canvas-confetti (CDN)
 - Google Fonts + Unsplash background image
-
-## 🔒 Note
-
-PINs are hashed (never stored in plain text) and login attempts are rate-limited after 5 failures. For a personal tracker this is plenty — but don't use a PIN you also use for banking.
+- localStorage for persistence

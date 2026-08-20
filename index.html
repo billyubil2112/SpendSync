@@ -33,37 +33,6 @@
     </div>
   </div>
 
-  <!-- Server offline overlay -->
-  <div id="offline" class="splash" style="display:none">
-    <div class="splash-card">
-      <div class="logo-big">📡</div>
-      <h1>Server is napping</h1>
-      <p>Free hosts take ~30-60s to wake up. Hang tight!</p>
-      <button id="retry-btn" class="btn btn-primary">Retry</button>
-    </div>
-  </div>
-
-  <!-- Login screen -->
-  <div id="login" class="splash" style="display:none">
-    <div class="login-card glass">
-      <div class="logo-big">💸</div>
-      <h1>Spend<b>Sync</b></h1>
-      <p class="login-sub">Enter your email and 6-digit PIN. First time? Your account is created automatically.</p>
-      <form id="login-form">
-        <label class="field">
-          <span>Email</span>
-          <input type="email" id="login-email" placeholder="you@gmail.com" autocomplete="email" required />
-        </label>
-        <label class="field">
-          <span>6-digit PIN</span>
-          <input type="password" id="login-pin" inputmode="numeric" maxlength="6" placeholder="••••••" autocomplete="current-password" required />
-        </label>
-        <p id="login-error" class="login-error"></p>
-        <button type="submit" id="login-btn" class="btn btn-primary login-btn">🔓 Log in</button>
-      </form>
-    </div>
-  </div>
-
   <div id="app" style="display:none">
     <header class="topbar glass">
       <div class="brand">
@@ -71,9 +40,7 @@
         <span class="brand-name">Spend<b>Sync</b></span>
       </div>
       <div class="topbar-right">
-        <div class="clock" id="user-chip">—</div>
         <div class="clock" id="clock">--:--</div>
-        <button id="logout-btn" class="icon-btn" title="Log out">🚪</button>
         <button id="sound-btn" class="icon-btn" title="Toggle sound">🔊</button>
       </div>
     </header>

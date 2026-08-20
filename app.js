@@ -25,7 +25,36 @@ const cat = (name) => CATEGORIES.find((c) => c.name === name) || { name, emoji: 
 
 /* ============================== STATE ============================== */
 
-let state = { budgets: {}, expenses: [], pots: [] };
+const DATA_KEY = 'spendsync_data_v2';
+
+function loadData() {
+  try {
+    const raw = localStorage.getItem(DATA_KEY);
+    if (raw) {
+      const d = JSON.parse(raw);
+      return {
+        budgets: d.budgets || {},
+        expenses: Array.isArray(d.expenses) ? d.expenses : [],
+        pots: Array.isArray(d.pots) ? d.pots : []
+      };
+    }
+  } catch (e) { /* corrupted storage -> start fresh */ }
+  return { budgets: {}, expenses: [], pots: [] };
+}
+
+function saveData() {
+  try {
+    localStorage.setItem(DATA_KEY, JSON.stringify(state));
+  } catch (e) {
+    toast('Could not save — storage is full or blocked.', '⚠️');
+  }
+}
+
+function uid() {
+  return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+}
+
+let state = loadData();
 let view = 'dashboard';
 let dashMonth = monthKey(today());
 let summaryMonth = monthKey(today());
@@ -150,118 +179,13 @@ function burst(scale) {
   });
 }
 
-/* ============================== API ============================== */
-
-let token = localStorage.getItem('ss_token');
-let currentUser = null;
-
-async function api(method, path, body) {
-  const headers = { 'Content-Type': 'application/json' };
-  if (token) headers['Authorization'] = 'Bearer ' + token;
-  const res = await fetch(path, {
-    method,
-    headers,
-    body: body ? JSON.stringify(body) : undefined
-  });
-  if (res.status === 401) {
-    handleLogout(false);
-    throw new Error('Session expired. Please log in again.');
-  }
-  if (!res.ok) {
-    const e = await res.json().catch(() => ({}));
-    throw new Error(e.error || 'Something went wrong');
-  }
-  return res.json();
-}
-
-/* ============================== LOGIN ============================== */
-
-function showLogin() {
-  $('#splash').style.display = 'none';
-  $('#offline').style.display = 'none';
-  $('#app').style.display = 'none';
-  $('#login').style.display = 'flex';
-}
-
-function hideLogin() {
-  $('#login').style.display = 'none';
-}
-
-function handleLogout(notify) {
-  token = null;
-  currentUser = null;
-  localStorage.removeItem('ss_token');
-  state = { budgets: {}, expenses: [], pots: [] };
-  $('#user-chip').textContent = '—';
-  showLogin();
-  if (notify) toast('Logged out', '👋');
-}
-
-async function doLogout() {
-  try { await api('POST', '/api/logout'); } catch (e) { /* ignore */ }
-  handleLogout(true);
-}
-
-async function doLogin(ev) {
-  ev.preventDefault();
-  const email = $('#login-email').value.trim();
-  const pin = $('#login-pin').value.trim();
-  const btn = $('#login-btn');
-  const errEl = $('#login-error');
-  errEl.textContent = '';
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { errEl.textContent = 'Enter a valid email.'; sfx.error(); return; }
-  if (!/^\d{6}$/.test(pin)) { errEl.textContent = 'PIN must be 6 digits.'; sfx.error(); return; }
-  btn.disabled = true;
-  btn.textContent = 'Logging in…';
-  try {
-    const res = await fetch('/api/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, pin })
-    });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) {
-      errEl.textContent = data.error || 'Login failed';
-      btn.disabled = false;
-      btn.textContent = '🔓 Log in';
-      sfx.error();
-      return;
-    }
-    token = data.token;
-    currentUser = data.email;
-    localStorage.setItem('ss_token', token);
-    $('#user-chip').textContent = currentUser;
-    hideLogin();
-    state = await api('GET', '/api/state');
-    $('#app').style.display = 'block';
-    renderAll();
-    sfx.success();
-    if (data.newUser) { toast('Account created — welcome!', '🎉'); burst(1.2); }
-    else toast('Welcome back!', '👋');
-  } catch (err) {
-    errEl.textContent = 'Connection error. Is the server awake?';
-    btn.disabled = false;
-    btn.textContent = '🔓 Log in';
-  }
-}
-
 /* ============================== BOOTSTRAP ============================== */
 
-async function loadState() {
-  try {
-    if (!token) { showLogin(); return; }
-    const sess = await api('GET', '/api/session');
-    currentUser = sess.email;
-    $('#user-chip').textContent = currentUser;
-    state = await api('GET', '/api/state');
-    $('#splash').style.display = 'none';
-    $('#app').style.display = 'block';
-    renderAll();
-    sfx.open();
-  } catch (err) {
-    $('#splash').style.display = 'none';
-    $('#offline').style.display = 'flex';
-  }
+function boot() {
+  $('#splash').style.display = 'none';
+  $('#app').style.display = 'block';
+  renderAll();
+  sfx.open();
 }
 
 /* ============================== TOASTS ============================== */
@@ -285,19 +209,16 @@ function toastUndo() {
   el.style.cursor = 'pointer';
   el.innerHTML = '<span>🗑️</span><span>Deleted</span><button class="chip-btn" id="undo-btn">Undo</button>';
   wrap.appendChild(el);
-  $('#undo-btn').addEventListener('click', async () => {
-    try {
-      if (lastDeletedType === 'expense') {
-        await api('POST', '/api/expenses', lastDeleted);
-      } else if (lastDeletedType === 'pot') {
-        await api('POST', '/api/pots', lastDeleted);
-      }
-      lastDeleted = null; lastDeletedType = null;
-      el.remove();
-      sfx.success();
-      toast('Restored!', '↩️');
-      await reload();
-    } catch (e) { sfx.error(); toast(e.message, '⚠️'); }
+  $('#undo-btn').addEventListener('click', () => {
+    if (lastDeletedType === 'expense') state.expenses = [lastDeleted, ...state.expenses];
+    else if (lastDeletedType === 'pot') state.pots = [lastDeleted, ...state.pots];
+    lastDeleted = null;
+    lastDeletedType = null;
+    el.remove();
+    saveData();
+    renderAll();
+    sfx.success();
+    toast('Restored!', '↩️');
   });
   setTimeout(() => el.remove(), 5000);
 }
@@ -634,115 +555,113 @@ function openFundModal(pot) {
 
 /* ============================== ACTIONS ============================== */
 
-async function saveExpense(ev) {
+function saveExpense(ev) {
   ev.preventDefault();
   const id = $('#expense-id').value;
-  const body = {
+  const exp = {
+    id: id || uid(),
+    createdAt: new Date().toISOString(),
     name: $('#expense-name').value.trim(),
     amount: parseFloat($('#expense-amount').value),
     category: $('#expense-category').value,
     date: $('#expense-date').value,
     notes: $('#expense-notes').value.trim()
   };
-  try {
-    if (id) {
-      await api('PUT', '/api/expenses/' + id, body);
-      sfx.success();
-      toast('Expense updated!', '✏️');
-    } else {
-      await api('POST', '/api/expenses', body);
-      sfx.success();
-      toast('Expense saved!', '💸');
-      burst(1);
-    }
-    closeModal('#expense-modal');
-    await reload();
-  } catch (err) {
-    sfx.error();
-    toast(err.message, '⚠️');
+  if (!exp.name) { sfx.error(); toast('Enter a name', '⚠️'); return; }
+  if (!(exp.amount > 0)) { sfx.error(); toast('Amount must be more than 0', '⚠️'); return; }
+  if (id) {
+    state.expenses = state.expenses.map((e) => (e.id === id ? exp : e));
+    sfx.success();
+    toast('Expense updated!', '✏️');
+  } else {
+    state.expenses = [exp, ...state.expenses];
+    sfx.success();
+    toast('Expense saved!', '💸');
+    burst(1);
   }
+  closeModal('#expense-modal');
+  saveData();
+  renderAll();
 }
 
-async function deleteExpense(exp) {
-  try {
-    await api('DELETE', '/api/expenses/' + exp.id);
-    lastDeleted = exp;
-    lastDeletedType = 'expense';
-    sfx.coin();
-    toastUndo();
-    await reload();
-  } catch (err) { sfx.error(); toast(err.message, '⚠️'); }
+function deleteExpense(exp) {
+  state.expenses = state.expenses.filter((e) => e.id !== exp.id);
+  lastDeleted = exp;
+  lastDeletedType = 'expense';
+  saveData();
+  sfx.coin();
+  toastUndo();
+  renderAll();
 }
 
-async function saveBudget(ev) {
+function saveBudget(ev) {
   ev.preventDefault();
   const amount = parseFloat($('#budget-input').value);
   if (isNaN(amount) || amount < 0) { sfx.error(); toast('Enter a valid budget', '⚠️'); return; }
-  try {
-    await api('POST', '/api/budget', { month: dashMonth, amount });
-    sfx.success();
-    toast(`Budget set to ${fmt(amount)}`, '🎯');
-    closeModal('#budget-modal');
-    await reload();
-  } catch (err) { sfx.error(); toast(err.message, '⚠️'); }
+  state.budgets[dashMonth] = amount;
+  saveData();
+  renderAll();
+  sfx.success();
+  toast(`Budget set to ${fmt(amount)}`, '🎯');
+  closeModal('#budget-modal');
 }
 
-async function savePot(ev) {
+function savePot(ev) {
   ev.preventDefault();
   const id = $('#pot-id').value;
-  const body = {
+  const pot = {
+    id: id || uid(),
+    createdAt: new Date().toISOString(),
     name: $('#pot-name').value.trim(),
     target: parseFloat($('#pot-target').value),
-    saved: parseFloat($('#pot-saved').value) || 0
+    saved: parseFloat($('#pot-saved').value) || 0,
+    color: $('#pot-id').value ? (state.pots.find((p) => p.id === id) || {}).color || randPotColor() : randPotColor()
   };
-  if (!id) body.color = randPotColor();
-  try {
-    if (id) {
-      await api('PUT', '/api/pots/' + id, body);
-      sfx.success();
-      toast('Pot updated!', '✏️');
-    } else {
-      await api('POST', '/api/pots', body);
-      sfx.success();
-      toast('New pot created!', '🏺');
-      burst(1);
-    }
-    closeModal('#pot-modal');
-    await reload();
-  } catch (err) { sfx.error(); toast(err.message, '⚠️'); }
+  if (!pot.name) { sfx.error(); toast('Enter a goal name', '⚠️'); return; }
+  if (!(pot.target > 0)) { sfx.error(); toast('Target must be more than 0', '⚠️'); return; }
+  if (id) {
+    state.pots = state.pots.map((p) => (p.id === id ? pot : p));
+    sfx.success();
+    toast('Pot updated!', '✏️');
+  } else {
+    state.pots = [pot, ...state.pots];
+    sfx.success();
+    toast('New pot created!', '🏺');
+    burst(1);
+  }
+  closeModal('#pot-modal');
+  saveData();
+  renderAll();
 }
 
-async function deletePot(pot) {
-  try {
-    await api('DELETE', '/api/pots/' + pot.id);
-    lastDeleted = pot;
-    lastDeletedType = 'pot';
-    sfx.coin();
-    toastUndo();
-    await reload();
-  } catch (err) { sfx.error(); toast(err.message, '⚠️'); }
+function deletePot(pot) {
+  state.pots = state.pots.filter((p) => p.id !== pot.id);
+  lastDeleted = pot;
+  lastDeletedType = 'pot';
+  saveData();
+  sfx.coin();
+  toastUndo();
+  renderAll();
 }
 
-async function fundPot(ev) {
+function fundPot(ev) {
   ev.preventDefault();
   const amount = parseFloat($('#fund-amount').value);
   if (isNaN(amount) || amount <= 0) { sfx.error(); toast('Enter a valid amount', '⚠️'); return; }
-  try {
-    const res = await api('POST', '/api/pots/' + fundPotId + '/fund', { amount });
-    const pot = res.pot;
-    sfx.coin();
-    closeModal('#fund-modal');
-    await reload();
-    toast(`Added ${fmt(amount)} to "${pot.name}"`, '💰');
-    if (pot.saved >= pot.target) burst(1.4);
-  } catch (err) { sfx.error(); toast(err.message, '⚠️'); }
+  const pot = state.pots.find((p) => p.id === fundPotId);
+  if (!pot) { sfx.error(); toast('Pot not found', '⚠️'); return; }
+  pot.saved = Math.max(0, pot.saved + amount);
+  saveData();
+  renderAll();
+  sfx.coin();
+  closeModal('#fund-modal');
+  toast(`Added ${fmt(amount)} to "${pot.name}"`, '💰');
+  if (pot.saved >= pot.target) burst(1.4);
 }
 
-async function reload() {
-  try {
-    state = await api('GET', '/api/state');
-    renderAll();
-  } catch (err) { sfx.error(); toast('Sync failed: ' + err.message, '⚠️'); }
+function reload() {
+  saveData();
+  renderAll();
 }
 
 /* ============================== DOWNLOADS ============================== */
@@ -874,11 +793,6 @@ function setupEvents() {
     if (soundOn) sfx.success();
   });
 
-  $('#retry-btn').addEventListener('click', () => { $('#offline').style.display = 'none'; $('#splash').style.display = 'flex'; loadState(); });
-
-  $('#login-form').addEventListener('submit', doLogin);
-  $('#logout-btn').addEventListener('click', doLogout);
-
   $('#download-csv').addEventListener('click', downloadCSV);
   $('#download-report').addEventListener('click', downloadReport);
 
@@ -903,4 +817,4 @@ function startClock() {
 
 setupEvents();
 startClock();
-loadState();
+boot();
