@@ -5,12 +5,15 @@ A fun, interactive budget tracker that runs **entirely in your browser** and sto
 ## ✨ Features
 
 - **Dashboard** — monthly budget you can change any time, with live usage ring
+- **Income tracking 💵** — set monthly income per month; see net savings (income − spent)
 - **Daily / weekly / monthly tracking** — spend vs allowance for each period
 - **Charts** — category doughnut chart + daily trend bar chart (Chart.js)
 - **Add / edit / delete expenses** — name, amount (RM), 15 categories, notes, and any date (past or future)
 - **Category breakdown** with animated bars
 - **Saving pots 🏺** — savings goals with progress bars; add, fund, edit, delete
-- **Monthly summary** — stats per month + download as **CSV** or a formatted **report**
+- **Monthly summary** — stats per month, **vs last month** comparison, **month-end forecast**, plus download as **CSV** or a formatted **report**
+- **Year overview** — 12-month spending/budget bar chart with year navigation
+- **Backup & restore 💾** — download your full data as one JSON file and restore it any time
 - **Fun & interactive** — confetti bursts, sound effects (toggleable), live clock, glassmorphism UI, Unsplash background
 - **No backend** — data is saved in your browser's localStorage, so it stays on your device forever
 
@@ -53,6 +56,10 @@ Because there's no server, there's nothing to wake up, restart, or pay for — a
 Go to the **Summary** tab, pick a month, then tap:
 - **CSV** — raw data for Excel/Sheets
 - **Report** — a formatted text summary with stats + transactions
+- **Backup 💾** — downloads your *entire* data (budgets, income, expenses, pots) as one JSON file
+- **Restore ↩** — upload a backup file to replace all data on this device (shows a confirm first)
+
+Tip: make a backup before clearing browser data, switching phones, or after big changes.
 
 ## 🛠 Tech
 

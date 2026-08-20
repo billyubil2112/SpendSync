@@ -35,11 +35,12 @@ function loadData() {
       return {
         budgets: d.budgets || {},
         expenses: Array.isArray(d.expenses) ? d.expenses : [],
-        pots: Array.isArray(d.pots) ? d.pots : []
+        pots: Array.isArray(d.pots) ? d.pots : [],
+        income: d.income || {}
       };
     }
   } catch (e) { /* corrupted storage -> start fresh */ }
-  return { budgets: {}, expenses: [], pots: [] };
+  return { budgets: {}, expenses: [], pots: [], income: {} };
 }
 
 function saveData() {
@@ -65,6 +66,8 @@ let lastDeletedType = null;
 
 let pieChart = null;
 let barChart = null;
+let yearChart = null;
+let year = new Date().getFullYear();
 
 /* ============================== UTILS ============================== */
 
@@ -238,8 +241,10 @@ function renderAll() {
 
 function renderBudget() {
   const budget = state.budgets[dashMonth] || 0;
+  const income = state.income[dashMonth] || 0;
   const spent = sum(expensesInMonth(dashMonth));
   const left = budget - spent;
+  const net = income - spent;
   const days = daysInMonth(dashMonth);
   const dailyAllow = budget > 0 ? budget / days : 0;
   const weeklyAllow = budget > 0 ? budget / (days / 7) : 0;
@@ -251,6 +256,17 @@ function renderBudget() {
   $('#stat-left').className = 'hs-value ' + (budget > 0 && left < 0 ? 'bad' : 'good');
   $('#stat-daily').textContent = budget > 0 ? fmt(dailyAllow) : '—';
   $('#stat-weekly').textContent = budget > 0 ? fmt(weeklyAllow) : '—';
+  const netEl = $('#stat-net');
+  if (income > 0) {
+    netEl.textContent = fmt(net);
+    netEl.className = 'hs-value ' + (net >= 0 ? 'good' : 'bad');
+  } else {
+    netEl.textContent = '—';
+    netEl.className = 'hs-value';
+  }
+  const incLine = $('#income-line');
+  incLine.textContent = income > 0 ? 'Income ' + fmt(income) + ' · ' + (net >= 0 ? 'saved ' + fmt(net) : 'overspent ' + fmt(-net)) : 'Set your monthly income to see net savings.';
+  incLine.style.color = income > 0 ? (net >= 0 ? 'var(--accent)' : 'var(--danger)') : '';
 
   const circ = 2 * Math.PI * 52;
   const pct = budget > 0 ? Math.min(200, (spent / budget) * 100) : (spent > 0 ? 100 : 0);
@@ -443,6 +459,8 @@ function renderSummary() {
   const monthExp = expensesInMonth(summaryMonth).sort((a, b) => (b.date < a.date ? -1 : b.date > a.date ? 1 : 0));
   const spent = sum(monthExp);
   const budget = state.budgets[summaryMonth] || 0;
+  const income = state.income[summaryMonth] || 0;
+  const net = income - spent;
   const byCat = {};
   monthExp.forEach((e) => { byCat[e.category] = (byCat[e.category] || 0) + e.amount; });
   const top = Object.entries(byCat).sort((a, b) => b[1] - a[1])[0];
@@ -451,19 +469,43 @@ function renderSummary() {
   const daysElapsed = isCur ? Math.min(todayNum, daysInMonth(summaryMonth)) : daysInMonth(summaryMonth);
   const dailyAvg = daysElapsed ? spent / daysElapsed : 0;
 
+  // Compare vs last month
+  const prevKey = shiftMonth(summaryMonth, -1);
+  const prevSpent = sum(expensesInMonth(prevKey));
+  let compare;
+  if (prevSpent <= 0) {
+    compare = { text: '—', cls: '' };
+  } else if (spent <= 0) {
+    compare = { text: '▼ 100%', cls: 'good' };
+  } else {
+    const chg = ((spent - prevSpent) / prevSpent) * 100;
+    compare = { text: (chg >= 0 ? '▲ ' : '▼ ') + Math.round(Math.abs(chg)) + '%', cls: chg > 0 ? 'bad' : 'good' };
+  }
+
+  // Forecast month-end
+  const projected = Math.round(dailyAvg * daysInMonth(summaryMonth));
+  let projSub = 'on current pace';
+  if (budget > 0) projSub += ' · ' + (projected > budget ? '⏫ ' : 'ok ') + fmt(Math.abs(projected - budget)) + (projected > budget ? ' over' : ' under');
+
   const stats = [
     { label: 'Total spent', value: fmt(spent), sub: monthExp.length + ' transactions' },
+    { label: 'Income', value: income > 0 ? fmt(income) : '—', sub: income > 0 ? 'not counted as spent' : 'not set' },
+    { label: 'Net savings', value: income > 0 ? fmt(net) : '—', cls: income > 0 ? (net >= 0 ? 'good' : 'bad') : '', sub: income > 0 ? 'income − spent' : 'set income to track' },
     { label: 'Budget', value: budget > 0 ? fmt(budget) : '—', sub: budget > 0 ? Math.round((spent / budget) * 100) + '% used' : 'not set' },
     { label: 'Remaining', value: budget > 0 ? fmt(budget - spent) : '—', sub: budget - spent < 0 ? 'over budget' : 'of budget' },
     { label: 'Daily average', value: fmt(dailyAvg), sub: 'per day so far' },
+    { label: 'vs last month', value: compare.text, cls: compare.cls, sub: monthLabel(prevKey) },
+    { label: 'Projected month-end', value: fmt(projected), sub: projSub },
     { label: 'Top category', value: top ? top[0] : '—', sub: top ? fmt(top[1]) : '' }
   ];
   $('#sum-stats').innerHTML = stats.map((s, i) => `
     <div class="stat-card glass" style="animation-delay:${i * 40}ms">
       <div class="sc-label">${s.label}</div>
-      <div class="sc-value">${s.value}</div>
+      <div class="sc-value ${s.cls || ''}">${s.value}</div>
       <div class="sc-sub">${s.sub}</div>
     </div>`).join('');
+
+  renderYearChart();
 
   const list = $('#sum-list');
   if (monthExp.length === 0) {
@@ -481,6 +523,74 @@ function renderSummary() {
       </div>`;
     }).join('');
   }
+}
+
+function renderYearChart() {
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const labels = [];
+  const spentArr = [];
+  const budgArr = [];
+  let anySpent = false;
+  let anyBudg = false;
+  for (let m = 0; m < 12; m++) {
+    const key = year + '-' + pad(m + 1);
+    labels.push(months[m]);
+    const s = sum(expensesInMonth(key));
+    const b = state.budgets[key] || 0;
+    spentArr.push(s);
+    if (s > 0) anySpent = true;
+    if (b > 0) { budgArr.push(b); anyBudg = true; } else { budgArr.push(null); }
+  }
+  $('#year-label').textContent = year;
+  const emptyEl = $('#year-empty');
+  const canvas = $('#year-chart');
+  if (!anySpent) {
+    if (yearChart) { yearChart.destroy(); yearChart = null; }
+    canvas.style.display = 'none';
+    emptyEl.style.display = 'block';
+    return;
+  }
+  canvas.style.display = 'block';
+  emptyEl.style.display = 'none';
+  if (yearChart) { yearChart.destroy(); yearChart = null; }
+  const datasets = [{
+    type: 'bar',
+    label: 'Spent',
+    data: spentArr,
+    backgroundColor: spentArr.map((v, i) => (v > 0 ? 'rgba(52,224,161,0.8)' : 'rgba(255,255,255,0.05)')),
+    borderRadius: 4,
+    borderSkipped: false,
+    yAxisID: 'y'
+  }];
+  if (anyBudg) {
+    datasets.push({
+      type: 'line',
+      label: 'Budget',
+      data: budgArr,
+      borderColor: 'rgba(255,183,77,0.9)',
+      backgroundColor: 'rgba(255,183,77,0.15)',
+      borderWidth: 2,
+      pointRadius: 3,
+      tension: 0.35,
+      fill: true,
+      spanGaps: true,
+      yAxisID: 'y'
+    });
+  }
+  yearChart = new Chart(canvas, {
+    data: { labels, datasets },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'top', labels: { color: 'rgba(244,247,255,0.85)', font: { family: 'Plus Jakarta Sans', size: 12 }, boxWidth: 10, usePointStyle: true } },
+        tooltip: { callbacks: { label: (c) => c.dataset.label + ': ' + fmt(c.parsed.y) } }
+      },
+      scales: {
+        x: { grid: { display: false }, ticks: { color: 'rgba(244,247,255,0.5)', font: { size: 10 } } },
+        y: { grid: { color: 'rgba(255,255,255,0.06)' }, ticks: { color: 'rgba(244,247,255,0.6)', font: { size: 11 }, callback: (v) => 'RM' + v } }
+      }
+    }
+  });
 }
 
 /* ============================== HELPERS ============================== */
@@ -606,6 +716,63 @@ function saveBudget(ev) {
   closeModal('#budget-modal');
 }
 
+function openIncomeModal() {
+  $('#income-modal-month').textContent = monthLabel(dashMonth);
+  $('#income-input').value = state.income[dashMonth] || '';
+  openModal('#income-modal');
+}
+
+function saveIncome(ev) {
+  ev.preventDefault();
+  const amount = parseFloat($('#income-input').value);
+  if (isNaN(amount) || amount < 0) { sfx.error(); toast('Enter a valid income', '⚠️'); return; }
+  state.income[dashMonth] = amount;
+  saveData();
+  renderAll();
+  sfx.success();
+  toast(amount > 0 ? `Income set to ${fmt(amount)}` : 'Income cleared', amount > 0 ? '💰' : '🗑️');
+  closeModal('#income-modal');
+}
+
+function backupData() {
+  const payload = {
+    app: 'spendsync',
+    version: 2,
+    exportedAt: new Date().toISOString(),
+    data: state
+  };
+  const filename = 'spendsync-backup-' + new Date().toISOString().slice(0, 10) + '.json';
+  download(filename, JSON.stringify(payload, null, 2), 'application/json');
+  sfx.success();
+  toast('Backup downloaded!', '💾');
+}
+
+async function restoreData(ev) {
+  const file = ev.target.files && ev.target.files[0];
+  ev.target.value = '';
+  if (!file) return;
+  try {
+    const text = await file.text();
+    const parsed = JSON.parse(text);
+    const d = parsed && parsed.data ? parsed.data : parsed;
+    if (!d || !Array.isArray(d.expenses)) throw new Error('bad backup');
+    state = {
+      budgets: d.budgets || {},
+      expenses: d.expenses,
+      pots: Array.isArray(d.pots) ? d.pots : [],
+      income: d.income || {}
+    };
+    saveData();
+    renderAll();
+    sfx.success();
+    burst(1.2);
+    toast('Backup restored!', '🎉');
+  } catch (err) {
+    sfx.error();
+    toast('Invalid backup file', '⚠️');
+  }
+}
+
 function savePot(ev) {
   ev.preventDefault();
   const id = $('#pot-id').value;
@@ -691,6 +858,8 @@ function downloadReport() {
   const monthExp = expensesInMonth(summaryMonth).sort((a, b) => (a.date < b.date ? -1 : 1));
   const spent = sum(monthExp);
   const budget = state.budgets[summaryMonth] || 0;
+  const income = state.income[summaryMonth] || 0;
+  const net = income - spent;
   const byCat = {};
   monthExp.forEach((e) => { byCat[e.category] = (byCat[e.category] || 0) + e.amount; });
   const daysElapsed = summaryMonth === monthKey(iso(today())) ? Math.max(1, new Date().getDate()) : daysInMonth(summaryMonth);
@@ -704,6 +873,8 @@ function downloadReport() {
   lines.push('');
   lines.push('--- SUMMARY ---');
   lines.push(`Budget:       ${budget > 0 ? fmt(budget) : 'Not set'}`);
+  lines.push(`Income:       ${income > 0 ? fmt(income) : 'Not set'}`);
+  lines.push(`Net savings:  ${income > 0 ? fmt(net) : '—'}`);
   lines.push(`Total spent:  ${fmt(spent)}`);
   lines.push(`Remaining:    ${budget > 0 ? fmt(budget - spent) : '—'}${budget > 0 && budget - spent < 0 ? ' (OVER BUDGET!)' : ''}`);
   lines.push(`Transactions: ${monthExp.length}`);
@@ -747,8 +918,10 @@ function setupEvents() {
 
   $('#prev-month').addEventListener('click', () => { dashMonth = shiftMonth(dashMonth, -1); renderBudget(); renderPeriod(); renderCharts(); renderCategories(); renderExpenses(); sfx.click(); });
   $('#next-month').addEventListener('click', () => { dashMonth = shiftMonth(dashMonth, 1); renderBudget(); renderPeriod(); renderCharts(); renderCategories(); renderExpenses(); sfx.click(); });
-  $('#sum-prev').addEventListener('click', () => { summaryMonth = shiftMonth(summaryMonth, -1); renderSummary(); sfx.click(); });
-  $('#sum-next').addEventListener('click', () => { summaryMonth = shiftMonth(summaryMonth, 1); renderSummary(); sfx.click(); });
+  $('#sum-prev').addEventListener('click', () => { summaryMonth = shiftMonth(summaryMonth, -1); year = Number(summaryMonth.slice(0, 4)); renderSummary(); sfx.click(); });
+  $('#sum-next').addEventListener('click', () => { summaryMonth = shiftMonth(summaryMonth, 1); year = Number(summaryMonth.slice(0, 4)); renderSummary(); sfx.click(); });
+  $('#year-prev').addEventListener('click', () => { year--; const [y, m] = summaryMonth.split('-'); summaryMonth = year + '-' + m; renderSummary(); sfx.click(); });
+  $('#year-next').addEventListener('click', () => { year++; const [y, m] = summaryMonth.split('-'); summaryMonth = year + '-' + m; renderSummary(); sfx.click(); });
 
   document.querySelectorAll('.pill').forEach((p) => {
     p.addEventListener('click', () => {
@@ -760,12 +933,14 @@ function setupEvents() {
   });
 
   $('#edit-budget').addEventListener('click', openBudgetModal);
+  $('#edit-income').addEventListener('click', openIncomeModal);
   $('#add-expense-btn').addEventListener('click', () => openExpenseModal(null));
   $('#fab').addEventListener('click', () => openExpenseModal(null));
   $('#add-pot-btn').addEventListener('click', () => openPotModal(null));
 
   $('#expense-form').addEventListener('submit', saveExpense);
   $('#budget-form').addEventListener('submit', saveBudget);
+  $('#income-form').addEventListener('submit', saveIncome);
   $('#pot-form').addEventListener('submit', savePot);
   $('#fund-form').addEventListener('submit', fundPot);
 
@@ -783,7 +958,11 @@ function setupEvents() {
   });
 
   document.querySelectorAll('.quick-chips .chip-btn').forEach((c) => {
-    c.addEventListener('click', () => { $('#budget-input').value = c.dataset.amount; sfx.click(); });
+    c.addEventListener('click', () => {
+      const input = c.closest('.modal-card').querySelector('input[type="number"]');
+      if (input) input.value = c.dataset.amount;
+      sfx.click();
+    });
   });
 
   $('#sound-btn').addEventListener('click', () => {
@@ -795,6 +974,11 @@ function setupEvents() {
 
   $('#download-csv').addEventListener('click', downloadCSV);
   $('#download-report').addEventListener('click', downloadReport);
+  $('#backup-btn').addEventListener('click', backupData);
+  $('#restore-btn').addEventListener('click', () => {
+    if (confirm('Restore replaces ALL current data on this device. Continue?')) $('#restore-file').click();
+  });
+  $('#restore-file').addEventListener('change', restoreData);
 
   document.addEventListener('click', (e) => {
     if (e.target.closest('.btn, .tab, .pill, .icon-btn, .chip-btn, .mini-btn')) sfx.click();

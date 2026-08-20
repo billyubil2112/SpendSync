@@ -66,7 +66,11 @@
           <div class="hero-left">
             <div class="hero-label">Monthly Budget</div>
             <div class="hero-amount" id="budget-amount">RM 0</div>
-            <button id="edit-budget" class="chip-btn">✎ Edit budget</button>
+            <div class="hero-chip-row">
+              <button id="edit-budget" class="chip-btn">✎ Edit budget</button>
+              <button id="edit-income" class="chip-btn">💵 Set income</button>
+            </div>
+            <div class="hero-income-line" id="income-line"></div>
           </div>
           <div class="hero-ring" id="budget-ring">
             <svg viewBox="0 0 120 120">
@@ -94,6 +98,10 @@
             <div class="hero-stat">
               <span class="hs-label">Weekly allowance</span>
               <span class="hs-value" id="stat-weekly">RM 0</span>
+            </div>
+            <div class="hero-stat">
+              <span class="hs-label">Net (income − spent)</span>
+              <span class="hs-value" id="stat-net">—</span>
             </div>
           </div>
         </div>
@@ -152,7 +160,10 @@
           <h2 class="section-title">Monthly Summary</h2>
           <div class="summary-actions">
             <button id="download-csv" class="btn btn-ghost">⬇ CSV</button>
-            <button id="download-report" class="btn btn-primary">⬇ Report</button>
+            <button id="download-report" class="btn btn-ghost">⬇ Report</button>
+            <button id="backup-btn" class="btn btn-ghost">💾 Backup</button>
+            <button id="restore-btn" class="btn btn-primary">↩ Restore</button>
+            <input type="file" id="restore-file" accept=".json,application/json" style="display:none" />
           </div>
         </div>
         <div class="month-nav">
@@ -161,6 +172,18 @@
           <button id="sum-next" class="icon-btn">›</button>
         </div>
         <div class="stat-grid" id="sum-stats"></div>
+        <div class="card glass">
+          <div class="card-head">
+            <h3 class="card-title">Year Overview</h3>
+            <div class="year-nav">
+              <button id="year-prev" class="icon-btn">‹</button>
+              <span id="year-label">—</span>
+              <button id="year-next" class="icon-btn">›</button>
+            </div>
+          </div>
+          <div class="chart-wrap"><canvas id="year-chart"></canvas></div>
+          <div id="year-empty" class="empty-msg" style="display:none">No spending recorded this year 🫧</div>
+        </div>
         <div class="card glass">
           <h3 class="card-title">Transactions</h3>
           <div id="sum-list" class="expense-list"></div>
@@ -229,6 +252,31 @@
         <div class="modal-actions">
           <button type="button" class="btn btn-ghost" data-close="budget-modal">Cancel</button>
           <button type="submit" class="btn btn-primary">Save budget</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="income-modal" class="modal">
+    <div class="modal-card glass">
+      <button class="modal-close" data-close="income-modal">✕</button>
+      <h3>Set Monthly Income</h3>
+      <p class="modal-sub" id="income-modal-month"></p>
+      <form id="income-form">
+        <label class="field">
+          <span>Income (RM)</span>
+          <input type="number" id="income-input" min="0" step="0.01" placeholder="0.00" />
+        </label>
+        <div class="quick-chips">
+          <span>Quick set:</span>
+          <button type="button" class="chip-btn" data-amount="2000">2k</button>
+          <button type="button" class="chip-btn" data-amount="3000">3k</button>
+          <button type="button" class="chip-btn" data-amount="5000">5k</button>
+          <button type="button" class="chip-btn" data-amount="8000">8k</button>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-ghost" data-close="income-modal">Cancel</button>
+          <button type="submit" class="btn btn-primary">Save income</button>
         </div>
       </form>
     </div>

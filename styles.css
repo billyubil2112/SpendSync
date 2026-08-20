@@ -162,7 +162,9 @@ body {
 .ring-num { font-size: 1.5rem; font-weight: 800; }
 .ring-cap { font-size: 0.75rem; color: var(--muted); }
 
-.hero-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.hero-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; }
+.hero-chip-row { display: flex; gap: 8px; flex-wrap: wrap; }
+.hero-income-line { color: var(--muted); font-size: 0.85rem; font-weight: 600; margin-top: 10px; }
 .hero-stat {
   background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.2);
   border-radius: 14px; padding: 12px 14px;
@@ -290,11 +292,15 @@ body {
 .pot-actions .mini-btn { flex: 1; text-align: center; }
 
 /* ---------- Summary ---------- */
-.summary-actions { display: flex; gap: 10px; }
+.summary-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+.year-nav { display: flex; align-items: center; gap: 10px; }
+.year-nav span { font-weight: 800; font-size: 1rem; min-width: 52px; text-align: center; }
 .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; margin-bottom: 18px; }
 .stat-card { padding: 18px 20px; animation: fadeUp 0.4s ease both; }
 .stat-card .sc-label { font-size: 0.75rem; color: var(--muted); font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px; }
 .stat-card .sc-value { font-size: 1.7rem; font-weight: 800; margin-top: 6px; letter-spacing: -0.5px; }
+.stat-card .sc-value.bad { color: var(--danger); }
+.stat-card .sc-value.good { color: var(--accent); }
 .stat-card .sc-sub { font-size: 0.8rem; color: var(--muted); margin-top: 4px; }
 
 /* ---------- Modals ---------- */
