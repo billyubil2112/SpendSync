@@ -44,10 +44,14 @@ Because there's no server, there's nothing to wake up, restart, or pay for — a
 
 ## 📱 Add to your iPhone home screen
 
+SpendSync is a **Progressive Web App (PWA)** — still just a website, but installable and offline-capable:
+
 1. Open the app in **Safari** (Chrome won't let you add to home screen).
 2. Tap the **Share** button → **Add to Home Screen**.
 3. Name it *SpendSync* → **Add**.
-4. It opens full-screen like an app, and the icon stays on your home screen.
+4. It opens **full-screen with no address bar**, shows the SpendSync icon, and **works offline** (files are cached by the service worker).
+
+> If your old shortcut still shows the generic icon, delete it and add it again once to pick up the new icon.
 
 > Keep in mind: data is stored in the browser, so use the same browser/device for the same budget. On the iPhone shortcut, that's Safari — it persists there.
 
@@ -67,3 +71,4 @@ Tip: make a backup before clearing browser data, switching phones, or after big 
 - Chart.js + canvas-confetti (CDN)
 - Google Fonts + Unsplash background image
 - localStorage for persistence
+- PWA: manifest.json + service worker for installable, offline support

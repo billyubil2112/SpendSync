@@ -210,6 +210,9 @@ function boot() {
   $('#app').style.display = 'block';
   renderAll();
   sfx.open();
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('sw.js').catch(() => {});
+  }
 }
 
 /* ============================== TOASTS ============================== */
