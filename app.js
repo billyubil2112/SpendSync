@@ -69,6 +69,27 @@ let barChart = null;
 let yearChart = null;
 let year = new Date().getFullYear();
 
+const centerText = {
+  id: 'centerText',
+  afterDraw(chart, args, opts) {
+    if (!opts || opts.hide) return;
+    const { ctx, chartArea } = chart;
+    if (!chartArea || !chartArea.width) return;
+    const x = chartArea.left + chartArea.width / 2;
+    const y = chartArea.top + chartArea.height / 2;
+    ctx.save();
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.font = '800 22px "Plus Jakarta Sans", sans-serif';
+    ctx.fillStyle = 'rgba(244,247,255,0.96)';
+    ctx.fillText(opts.value || '', x, y - 9);
+    ctx.font = '600 11px "Plus Jakarta Sans", sans-serif';
+    ctx.fillStyle = 'rgba(244,247,255,0.6)';
+    ctx.fillText(opts.label || '', x, y + 14);
+    ctx.restore();
+  }
+};
+
 /* ============================== UTILS ============================== */
 
 const $ = (sel) => document.querySelector(sel);
@@ -329,9 +350,11 @@ function renderCharts() {
         responsive: true, maintainAspectRatio: false,
         cutout: '62%',
         plugins: {
+          centerText: { value: fmt(sum(monthExp)), label: 'spent this month' },
           legend: { position: 'right', labels: { color: 'rgba(244,247,255,0.85)', font: { family: 'Plus Jakarta Sans', size: 12 }, boxWidth: 10, padding: 14 } }
         }
-      }
+      },
+      plugins: [centerText]
     });
   }
 
@@ -612,13 +635,38 @@ function randPotColor() {
 /* ============================== MODALS ============================== */
 
 function openModal(id) {
-  $(id).classList.add('open');
+  const modal = $(id);
+  modal.classList.add('open');
   sfx.open();
+  const focusable = modal.querySelector('input, select, textarea, button');
+  setTimeout(() => { if (focusable) focusable.focus(); }, 60);
 }
 
 function closeModal(id) {
-  $(id).classList.remove('open');
+  const modal = $(id);
+  if (!modal) return;
+  modal.classList.remove('open');
+  const focusable = modal.querySelector('input, select, textarea, button');
+  if (focusable) focusable.blur();
 }
+
+document.addEventListener('keydown', (e) => {
+  if (e.key !== 'Escape') return;
+  const open = document.querySelector('.modal.open');
+  if (open) closeModal('#' + open.id);
+});
+
+document.addEventListener('keydown', (e) => {
+  if (e.key !== 'Tab') return;
+  const open = document.querySelector('.modal.open');
+  if (!open) return;
+  const focusables = [...open.querySelectorAll('input, select, textarea, button, [tabindex]:not([tabindex="-1"])')].filter((el) => !el.disabled);
+  if (focusables.length === 0) return;
+  const first = focusables[0];
+  const last = focusables[focusables.length - 1];
+  if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+  else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+});
 
 document.querySelectorAll('[data-close]').forEach((b) => {
   b.addEventListener('click', () => closeModal('#' + b.dataset.close));
@@ -776,16 +824,18 @@ async function restoreData(ev) {
 function savePot(ev) {
   ev.preventDefault();
   const id = $('#pot-id').value;
+  const prev = id ? state.pots.find((p) => p.id === id) : null;
   const pot = {
     id: id || uid(),
     createdAt: new Date().toISOString(),
     name: $('#pot-name').value.trim(),
     target: parseFloat($('#pot-target').value),
     saved: parseFloat($('#pot-saved').value) || 0,
-    color: $('#pot-id').value ? (state.pots.find((p) => p.id === id) || {}).color || randPotColor() : randPotColor()
+    color: (prev || {}).color || randPotColor()
   };
   if (!pot.name) { sfx.error(); toast('Enter a goal name', '⚠️'); return; }
   if (!(pot.target > 0)) { sfx.error(); toast('Target must be more than 0', '⚠️'); return; }
+  const hitGoal = pot.target > 0 && pot.saved >= pot.target && !(prev && prev.saved >= prev.target);
   if (id) {
     state.pots = state.pots.map((p) => (p.id === id ? pot : p));
     sfx.success();
@@ -799,6 +849,7 @@ function savePot(ev) {
   closeModal('#pot-modal');
   saveData();
   renderAll();
+  if (hitGoal) celebrateGoal(pot);
 }
 
 function deletePot(pot) {
@@ -817,13 +868,22 @@ function fundPot(ev) {
   if (isNaN(amount) || amount <= 0) { sfx.error(); toast('Enter a valid amount', '⚠️'); return; }
   const pot = state.pots.find((p) => p.id === fundPotId);
   if (!pot) { sfx.error(); toast('Pot not found', '⚠️'); return; }
+  const wasGoal = pot.target > 0 && pot.saved >= pot.target;
   pot.saved = Math.max(0, pot.saved + amount);
   saveData();
   renderAll();
   sfx.coin();
   closeModal('#fund-modal');
   toast(`Added ${fmt(amount)} to "${pot.name}"`, '💰');
-  if (pot.saved >= pot.target) burst(1.4);
+  if (pot.target > 0 && pot.saved >= pot.target && !wasGoal) celebrateGoal(pot);
+  else if (pot.saved >= pot.target) burst(1.2);
+}
+
+function celebrateGoal(pot) {
+  burst(2);
+  setTimeout(() => burst(1.2), 350);
+  sfx.success();
+  toast(`🎉 Goal reached! ${fmt(pot.saved)} / ${fmt(pot.target)} for "${pot.name}"`, '🏆');
 }
 
 function reload() {
@@ -985,6 +1045,58 @@ function setupEvents() {
   });
 
   $('#expense-category').innerHTML = CATEGORIES.map((c) => `<option value="${c.name}">${c.emoji} ${c.name}</option>`).join('');
+  setupSwipes();
+}
+
+function setupSwipes() {
+  if (!('ontouchstart' in window)) return;
+
+  const swipe = { sx: 0, sy: 0, item: null };
+
+  document.addEventListener('touchstart', (e) => {
+    const t = e.changedTouches[0];
+    swipe.sx = t.clientX;
+    swipe.sy = t.clientY;
+    swipe.item = e.target.closest('.expense-item') || null;
+  }, { passive: true });
+
+  document.addEventListener('touchmove', (e) => {
+    if (!swipe.item) return;
+    const t = e.changedTouches[0];
+    const dx = t.clientX - swipe.sx;
+    const dy = t.clientY - swipe.sy;
+    if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 12) e.preventDefault();
+  }, { passive: false });
+
+  document.addEventListener('touchend', (e) => {
+    const t = e.changedTouches[0];
+    const dx = t.clientX - swipe.sx;
+    const dy = t.clientY - swipe.sy;
+    const item = swipe.item;
+    swipe.item = null;
+    if (Math.abs(dx) < 60 || Math.abs(dx) < Math.abs(dy) * 1.4) return;
+
+    if (item) {
+      if (dx < 0) {
+        const delBtn = item.querySelector('[data-act="del"]');
+        if (delBtn) {
+          const exp = state.expenses.find((x) => x.id === delBtn.dataset.id);
+          if (exp) deleteExpense(exp);
+        }
+      }
+      return;
+    }
+
+    if (view === 'dashboard') {
+      dashMonth = shiftMonth(dashMonth, dx < 0 ? 1 : -1);
+      renderBudget(); renderPeriod(); renderCharts(); renderCategories(); renderExpenses();
+    } else if (view === 'summary') {
+      summaryMonth = shiftMonth(summaryMonth, dx < 0 ? 1 : -1);
+      year = Number(summaryMonth.slice(0, 4));
+      renderSummary();
+    }
+    sfx.click();
+  }, { passive: true });
 }
 
 function startClock() {

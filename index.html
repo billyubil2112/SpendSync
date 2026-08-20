@@ -41,7 +41,7 @@
       </div>
       <div class="topbar-right">
         <div class="clock" id="clock">--:--</div>
-        <button id="sound-btn" class="icon-btn" title="Toggle sound">🔊</button>
+        <button id="sound-btn" class="icon-btn" title="Toggle sound" aria-label="Toggle sound">🔊</button>
       </div>
     </header>
 
@@ -56,9 +56,9 @@
       <!-- ============ DASHBOARD ============ -->
       <section id="tab-dashboard" class="tab-view active">
         <div class="month-nav">
-          <button id="prev-month" class="icon-btn">‹</button>
+          <button id="prev-month" class="icon-btn" aria-label="Previous month">‹</button>
           <h2 id="month-label">—</h2>
-          <button id="next-month" class="icon-btn">›</button>
+          <button id="next-month" class="icon-btn" aria-label="Next month">›</button>
         </div>
 
         <!-- Budget hero -->
@@ -167,18 +167,18 @@
           </div>
         </div>
         <div class="month-nav">
-          <button id="sum-prev" class="icon-btn">‹</button>
+          <button id="sum-prev" class="icon-btn" aria-label="Previous month">‹</button>
           <h2 id="sum-month-label">—</h2>
-          <button id="sum-next" class="icon-btn">›</button>
+          <button id="sum-next" class="icon-btn" aria-label="Next month">›</button>
         </div>
         <div class="stat-grid" id="sum-stats"></div>
         <div class="card glass">
           <div class="card-head">
             <h3 class="card-title">Year Overview</h3>
             <div class="year-nav">
-              <button id="year-prev" class="icon-btn">‹</button>
+              <button id="year-prev" class="icon-btn" aria-label="Previous year">‹</button>
               <span id="year-label">—</span>
-              <button id="year-next" class="icon-btn">›</button>
+              <button id="year-next" class="icon-btn" aria-label="Next year">›</button>
             </div>
           </div>
           <div class="chart-wrap"><canvas id="year-chart"></canvas></div>
@@ -191,13 +191,13 @@
       </section>
     </main>
 
-    <button id="fab" class="fab" title="Add expense">＋</button>
+    <button id="fab" class="fab" title="Add expense" aria-label="Add expense">＋</button>
   </div>
 
   <!-- ============ MODALS ============ -->
-  <div id="expense-modal" class="modal">
+  <div id="expense-modal" class="modal" role="dialog" aria-modal="true" aria-label="Expense dialog">
     <div class="modal-card glass">
-      <button class="modal-close" data-close="expense-modal">✕</button>
+      <button class="modal-close" data-close="expense-modal" aria-label="Close">✕</button>
       <h3 id="expense-modal-title">New Expense</h3>
       <form id="expense-form">
         <input type="hidden" id="expense-id" />
@@ -231,9 +231,9 @@
     </div>
   </div>
 
-  <div id="budget-modal" class="modal">
+  <div id="budget-modal" class="modal" role="dialog" aria-modal="true" aria-label="Set budget">
     <div class="modal-card glass">
-      <button class="modal-close" data-close="budget-modal">✕</button>
+      <button class="modal-close" data-close="budget-modal" aria-label="Close">✕</button>
       <h3>Set Monthly Budget</h3>
       <p class="modal-sub" id="budget-modal-month"></p>
       <form id="budget-form">
@@ -257,9 +257,9 @@
     </div>
   </div>
 
-  <div id="income-modal" class="modal">
+  <div id="income-modal" class="modal" role="dialog" aria-modal="true" aria-label="Set income">
     <div class="modal-card glass">
-      <button class="modal-close" data-close="income-modal">✕</button>
+      <button class="modal-close" data-close="income-modal" aria-label="Close">✕</button>
       <h3>Set Monthly Income</h3>
       <p class="modal-sub" id="income-modal-month"></p>
       <form id="income-form">
@@ -282,9 +282,9 @@
     </div>
   </div>
 
-  <div id="pot-modal" class="modal">
+  <div id="pot-modal" class="modal" role="dialog" aria-modal="true" aria-label="Saving pot">
     <div class="modal-card glass">
-      <button class="modal-close" data-close="pot-modal">✕</button>
+      <button class="modal-close" data-close="pot-modal" aria-label="Close">✕</button>
       <h3 id="pot-modal-title">New Saving Pot</h3>
       <form id="pot-form">
         <input type="hidden" id="pot-id" />
@@ -312,9 +312,9 @@
     </div>
   </div>
 
-  <div id="fund-modal" class="modal">
+  <div id="fund-modal" class="modal" role="dialog" aria-modal="true" aria-label="Add money to pot">
     <div class="modal-card glass">
-      <button class="modal-close" data-close="fund-modal">✕</button>
+      <button class="modal-close" data-close="fund-modal" aria-label="Close">✕</button>
       <h3 id="fund-title">Add money</h3>
       <p class="modal-sub" id="fund-sub"></p>
       <form id="fund-form">

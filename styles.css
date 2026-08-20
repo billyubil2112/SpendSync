@@ -18,6 +18,10 @@
 
 * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 
+:focus { outline: none; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 8px; }
+button:focus-visible { outline-offset: 3px; }
+
 html, body { height: 100%; }
 
 body {
@@ -184,6 +188,7 @@ body {
   transition: all 0.25s;
 }
 .pill:hover { color: var(--text); }
+.pill:active { transform: scale(0.96); }
 .pill.active { color: #06201a; background: var(--grad); box-shadow: 0 6px 18px rgba(52,224,161,0.3); }
 .period-readout { padding: 10px 18px; font-size: 0.92rem; font-weight: 600; color: var(--text); }
 .period-readout b { color: var(--accent); font-size: 1.05rem; }
@@ -205,6 +210,7 @@ body {
   background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.2); border-radius: 14px;
   animation: fadeUp 0.35s ease both;
 }
+.cat-row:active { background: rgba(255,255,255,0.08); }
 .cat-dot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; box-shadow: 0 0 12px currentColor; }
 .cat-name { font-weight: 600; flex: 1; font-size: 0.92rem; }
 .cat-bar { height: 6px; border-radius: 999px; background: rgba(255,255,255,0.1); overflow: hidden; width: 80px; }
@@ -219,6 +225,7 @@ body {
   transition: transform 0.2s, background 0.2s; animation: fadeUp 0.35s ease both;
 }
 .expense-item:hover { transform: translateX(4px); background: rgba(255,255,255,0.1); }
+.expense-item:active { transform: scale(0.985); background: rgba(255,255,255,0.08); }
 .exp-icon {
   width: 44px; height: 44px; border-radius: 14px; display: flex; align-items: center; justify-content: center;
   font-size: 1.3rem; background: rgba(255,255,255,0.16); flex-shrink: 0;
@@ -236,6 +243,7 @@ body {
   border-radius: 10px; padding: 7px 11px; transition: all 0.15s;
 }
 .mini-btn:hover { background: rgba(255,255,255,0.22); transform: scale(1.05); }
+.mini-btn:active { transform: scale(0.94); }
 .mini-btn.danger:hover { background: rgba(255,92,122,0.3); border-color: var(--danger); }
 .empty-state { text-align: center; color: var(--muted); padding: 34px 10px; font-size: 0.95rem; }
 .empty-state .big { font-size: 2.2rem; display: block; margin-bottom: 8px; }
@@ -274,6 +282,7 @@ body {
   animation: fadeUp 0.4s ease both;
 }
 .pot-card:hover { transform: translateY(-6px); }
+.pot-card:active { transform: translateY(-2px) scale(0.99); }
 .pot-card::before {
   content: ""; position: absolute; inset: 0; opacity: 0.12;
   background: radial-gradient(300px 200px at 80% -10%, var(--potc, #7c6cff), transparent 70%);
@@ -297,6 +306,7 @@ body {
 .year-nav span { font-weight: 800; font-size: 1rem; min-width: 52px; text-align: center; }
 .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; margin-bottom: 18px; }
 .stat-card { padding: 18px 20px; animation: fadeUp 0.4s ease both; }
+.stat-card:active { transform: scale(0.98); }
 .stat-card .sc-label { font-size: 0.75rem; color: var(--muted); font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px; }
 .stat-card .sc-value { font-size: 1.7rem; font-weight: 800; margin-top: 6px; letter-spacing: -0.5px; }
 .stat-card .sc-value.bad { color: var(--danger); }
