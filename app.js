@@ -333,7 +333,7 @@ function catSVG(lv, mood) {
     <circle cx="100" cy="38" r="3.6" fill="#fff"/><circle cx="84" cy="40" r="2.4" fill="#fff"/><circle cx="116" cy="40" r="2.4" fill="#fff"/></g>` : '';
   const star = (x, y, r) => `<path d="M${x} ${y - r} L${x + r * 0.3} ${y - r * 0.3} L${x + r} ${y} L${x + r * 0.3} ${y + r * 0.3} L${x} ${y + r} L${x - r * 0.3} ${y + r * 0.3} L${x - r} ${y} L${x - r * 0.3} ${y - r * 0.3} Z" fill="#ffd166"/>`;
   const sparkles = boss ? `${star(152, 44, 7)}${star(46, 54, 5)}${star(160, 92, 4.5)}` : '';
-  const tail = `<path d="M${boss ? 62 : 66} ${adult ? 138 : 120} C 28 ${adult ? 150 : 132}, 20 ${adult ? 116 : 106}, 40 ${adult ? 108 : 102} C 46 ${adult ? 105 : 100}, 50 ${adult ? 112 : 108}, 46 ${adult ? 114 : 110}" stroke="${fur}" stroke-width="13" fill="none" stroke-linecap="round"/>`;
+  const tail = `<g class="cat-tail"><path d="M${boss ? 62 : 66} ${adult ? 138 : 120} C 28 ${adult ? 150 : 132}, 20 ${adult ? 116 : 106}, 40 ${adult ? 108 : 102} C 46 ${adult ? 105 : 100}, 50 ${adult ? 112 : 108}, 46 ${adult ? 114 : 110}" stroke="${fur}" stroke-width="13" fill="none" stroke-linecap="round"/></g>`;
   const ear = `<path d="M78 ${adult ? 52 : 58} L66 ${adult ? 18 : 26} L98 ${adult ? 36 : 46} Z" fill="${fur}"/><path d="M120 ${adult ? 52 : 58} L134 ${adult ? 18 : 26} L102 ${adult ? 36 : 46} Z" fill="${fur}"/><path d="M79 ${adult ? 50 : 56} L71 ${adult ? 28 : 34} L94 ${adult ? 41 : 48} Z" fill="${inner}"/><path d="M121 ${adult ? 50 : 56} L129 ${adult ? 28 : 34} L106 ${adult ? 41 : 48} Z" fill="${inner}"/>`;
   const body = `<ellipse cx="100" cy="${adult ? 158 : 142}" rx="${adult ? 52 : 42}" ry="${adult ? 46 : 37}" fill="${fur}"/>`;
   const paws = `<ellipse cx="76" cy="${adult ? 182 : 160}" rx="11" ry="7" fill="${fur}"/><ellipse cx="124" cy="${adult ? 182 : 160}" rx="11" ry="7" fill="${fur}"/><path d="M76 ${adult ? 168 : 150} q-4 ${adult ? 9 : 8} 0 ${adult ? 14 : 12}" stroke="${dark}" stroke-width="2.5" fill="none" opacity="0.35"/><path d="M124 ${adult ? 168 : 150} q4 ${adult ? 9 : 8} 0 ${adult ? 14 : 12}" stroke="${dark}" stroke-width="2.5" fill="none" opacity="0.35"/>`;
@@ -385,6 +385,26 @@ function addPetXp(n) {
     sfx.success();
     burst(1.5);
     toast(`🐱 Level up! Duit is now ${PET_LEVELS[after].tag}!`, '⭐');
+  }
+}
+
+// Trigger a happy animation on the tapped cat: squash-stretch + wag + hearts.
+function petReaction(svgEl) {
+  svgEl.classList.remove('petted');
+  void svgEl.offsetWidth;
+  svgEl.classList.add('petted');
+  const host = svgEl.closest('.pet-card') || svgEl.closest('.cat-svg-wrap');
+  const hearts = ['❤️', '🐟', '⭐', '💛'];
+  for (let i = 0; i < 4; i++) {
+    const h = document.createElement('span');
+    h.className = 'pet-heart';
+    h.textContent = hearts[Math.floor(Math.random() * hearts.length)];
+    h.style.left = 20 + Math.random() * 60 + '%';
+    h.style.bottom = 24 + Math.random() * 40 + '%';
+    h.style.animationDelay = Math.random() * 0.3 + 's';
+    h.style.fontSize = 0.8 + Math.random() * 0.7 + 'rem';
+    host.appendChild(h);
+    setTimeout(() => h.remove(), 1500);
   }
 }
 
@@ -1493,6 +1513,7 @@ function setupEvents() {
   });
 
   $('#pet-svg').addEventListener('click', () => {
+    petReaction($('#pet-svg'));
     addPetXp(2);
     renderPetWidget();
     sfx.coin();
@@ -1507,6 +1528,14 @@ function setupEvents() {
       renderCatTab();
       sfx.success();
     }
+  });
+
+  $('#cat-svg-big').addEventListener('click', () => {
+    petReaction($('#cat-svg-big'));
+    addPetXp(2);
+    renderCatTab();
+    sfx.coin();
+    toast('Duit purrs (+2 XP)', '🐱');
   });
 
   $('#download-csv').addEventListener('click', downloadCSV);

@@ -393,9 +393,38 @@ body {
 .game-strip { display: grid; grid-template-columns: 1.3fr 1fr; gap: 18px; margin-bottom: 18px; }
 .pet-card { display: flex; gap: 18px; align-items: center; cursor: pointer; transition: transform 0.2s; }
 .pet-card:hover { transform: translateY(-3px); }
-.pet-svg { width: 132px; flex-shrink: 0; display: flex; justify-content: center; filter: drop-shadow(0 8px 22px rgba(0,0,0,0.35)); animation: petFloat 3.2s ease-in-out infinite; }
+.pet-svg { width: 132px; flex-shrink: 0; display: flex; justify-content: center; filter: drop-shadow(0 8px 22px rgba(0,0,0,0.35)); animation: petFloat 3.2s ease-in-out infinite; position: relative; }
 .pet-svg svg { width: 132px; height: 135px; }
 @keyframes petFloat { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-7px); } }
+
+/* Petted reaction: squash-stretch bounce + wagging tail + hearts */
+.pet-svg.petted, .cat-svg-wrap.petted { animation: petPetted 0.7s cubic-bezier(0.34, 1.56, 0.64, 1); }
+@keyframes petPetted {
+  0% { transform: scale(1) rotate(0); }
+  20% { transform: scale(0.92, 1.08) rotate(-3deg); }
+  40% { transform: scale(1.08, 0.9) rotate(3deg); }
+  60% { transform: scale(0.95, 1.05) rotate(-2deg); }
+  80% { transform: scale(1.04, 0.96) rotate(2deg); }
+  100% { transform: scale(1) rotate(0); }
+}
+.pet-svg.petted .cat-tail, .cat-svg-wrap.petted .cat-tail {
+  transform-box: fill-box; transform-origin: 15% 85%;
+  animation: tailWag 0.55s ease-in-out 2;
+}
+@keyframes tailWag { 0%, 100% { transform: rotate(0); } 30% { transform: rotate(16deg); } 70% { transform: rotate(-14deg); } }
+
+.pet-heart {
+  position: absolute; pointer-events: none; z-index: 5;
+  animation: heartUp 1.3s ease-out forwards;
+}
+@keyframes heartUp {
+  0% { opacity: 0; transform: translateY(8px) scale(0.5); }
+  15% { opacity: 1; }
+  100% { opacity: 0; transform: translateY(-56px) scale(1.25); }
+}
+.pet-card { position: relative; }
+.cat-svg-wrap { position: relative; }
+
 .pet-card:active .pet-svg { animation: petBounce 0.4s ease; }
 @keyframes petBounce { 0% { transform: scale(1); } 40% { transform: scale(1.12) rotate(-4deg); } 100% { transform: scale(1); } }
 .pet-info { flex: 1; min-width: 0; }

@@ -1,4 +1,4 @@
-const CACHE = 'spendsync-v3';
+const CACHE = 'spendsync-v4';
 const ASSETS = [
   './',
   './index.html',
