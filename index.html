@@ -48,10 +48,11 @@
       </div>
     </header>
 
-    <nav class="tabs glass">
+      <nav class="tabs glass">
       <button class="tab active" data-tab="dashboard">📊 <span>Dashboard</span></button>
       <button class="tab" data-tab="pots">🏺 <span>Saving Pots</span></button>
       <button class="tab" data-tab="summary">📄 <span>Summary</span></button>
+      <button class="tab" data-tab="cat">🐱 <span>Money Cat</span></button>
     </nav>
 
     <main class="content">
@@ -71,7 +72,7 @@
             <div class="hero-amount" id="budget-amount">RM 0</div>
             <div class="hero-chip-row">
               <button id="edit-budget" class="chip-btn">✎ Edit budget</button>
-              <button id="edit-income" class="chip-btn">💵 Set income</button>
+              <button id="edit-income" class="chip-btn">💵 Add income</button>
             </div>
             <div class="hero-income-line" id="income-line"></div>
           </div>
@@ -107,6 +108,39 @@
               <span class="hs-value" id="stat-net">—</span>
             </div>
           </div>
+        </div>
+
+        <!-- Game strip: Money Cat + pace -->
+        <div class="game-strip">
+          <div class="card glass pet-card" id="pet-card" role="button" tabindex="0" aria-label="Tap to pet your cat">
+            <div class="pet-svg" id="pet-svg"></div>
+            <div class="pet-info">
+              <div class="pet-head">
+                <b id="pet-tag">Lil Furball</b>
+                <span class="pet-lv" id="pet-lv">LV 1/5</span>
+              </div>
+              <div class="pet-line" id="pet-line">…</div>
+              <div class="pet-xp"><i id="pet-xp-fill"></i></div>
+              <div class="pet-meta" id="pet-meta">…</div>
+            </div>
+          </div>
+          <div class="card glass pace-card">
+            <div class="pace-head">
+              <span class="pace-label">🐢 Daily pace</span>
+              <span class="pace-num" id="pace-num">—</span>
+            </div>
+            <div class="pace-bar"><i id="pace-bar-fill"></i></div>
+            <div class="pace-cap" id="pace-cap">…</div>
+            <div class="pace-chips" id="pace-chips">
+              <span class="streak-chip" id="streak-chip">🔥 <b id="streak-num">0</b> days on pace</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 50/30/20 split -->
+        <div class="card glass">
+          <h3 class="card-title">50 / 30 / 20 Split</h3>
+          <div id="split-box"></div>
         </div>
 
         <!-- Period pills -->
@@ -192,6 +226,33 @@
           <div id="sum-list" class="expense-list"></div>
         </div>
       </section>
+
+      <!-- ============ MONEY CAT ============ -->
+      <section id="tab-cat" class="tab-view">
+        <div class="section-head">
+          <h2 class="section-title">Money Cat 🐱</h2>
+          <button id="rename-pet-btn" class="btn btn-ghost">✎ Rename</button>
+        </div>
+        <div class="cat-stage glass" id="cat-stage">
+          <div class="cat-svg-wrap" id="cat-svg-big"></div>
+          <div class="cat-details">
+            <div class="cat-name" id="cat-name">Duit</div>
+            <div class="cat-level" id="cat-level">LV 1 · Lil Furball</div>
+            <div class="cat-line" id="cat-line">…</div>
+            <div class="cat-xpbar"><i id="cat-xp-fill-big"></i></div>
+            <div class="cat-xp" id="cat-xp">0 XP</div>
+            <div class="cat-meta" id="cat-meta">…</div>
+            <div class="cat-note">Tap your cat in the dashboard to give it a little pat. Earn XP by logging expenses, income, repeat trackers and saving. 🐾</div>
+          </div>
+        </div>
+        <div class="card glass">
+          <div class="card-head">
+            <h3 class="card-title">Achievements</h3>
+            <span class="ach-count" id="ach-count">0 / 0</span>
+          </div>
+          <div class="ach-shelf" id="ach-shelf"></div>
+        </div>
+      </section>
     </main>
 
     <button id="fab" class="fab" title="Add expense" aria-label="Add expense">＋</button>
@@ -224,6 +285,28 @@
           <span>Notes / Remarks</span>
           <textarea id="expense-notes" maxlength="500" rows="3" placeholder="Any notes…"></textarea>
         </label>
+        <div class="field-row">
+          <label class="field">
+            <span>Worth it?</span>
+            <div class="rate-row" id="rate-row">
+              <input type="hidden" id="expense-rate-val" value="0" />
+              <button type="button" class="rate-btn" data-rate="1" aria-label="Regret">😭</button>
+              <button type="button" class="rate-btn" data-rate="2" aria-label="Meh">😕</button>
+              <button type="button" class="rate-btn" data-rate="3" aria-label="OK">😐</button>
+              <button type="button" class="rate-btn" data-rate="4" aria-label="Worth it">🙂</button>
+              <button type="button" class="rate-btn" data-rate="5" aria-label="Loved it">🥰</button>
+              <button type="button" id="rate-clear" class="rate-btn clear" aria-label="Skip">skip</button>
+            </div>
+          </label>
+          <label class="field">
+            <span>Repeat monthly?</span>
+            <label class="switch">
+              <input type="checkbox" id="expense-repeat" />
+              <span class="switch-slider"></span>
+            </label>
+            <div class="field-hint">Bills &amp; subscriptions auto-carry to next month 🔁</div>
+          </label>
+        </div>
         <div class="modal-actions">
           <button type="button" id="expense-delete" class="btn btn-danger" style="display:none">Delete</button>
           <span class="spacer"></span>
@@ -260,26 +343,40 @@
     </div>
   </div>
 
-  <div id="income-modal" class="modal" role="dialog" aria-modal="true" aria-label="Set income">
+  <div id="income-modal" class="modal" role="dialog" aria-modal="true" aria-label="Add income">
     <div class="modal-card glass">
       <button class="modal-close" data-close="income-modal" aria-label="Close">✕</button>
-      <h3>Set Monthly Income</h3>
+      <h3>Income</h3>
       <p class="modal-sub" id="income-modal-month"></p>
+      <div id="income-list" class="income-list"></div>
       <form id="income-form">
-        <label class="field">
-          <span>Income (RM)</span>
-          <input type="number" id="income-input" min="0" step="0.01" placeholder="0.00" />
-        </label>
-        <div class="quick-chips">
-          <span>Quick set:</span>
-          <button type="button" class="chip-btn" data-amount="2000">2k</button>
-          <button type="button" class="chip-btn" data-amount="3000">3k</button>
-          <button type="button" class="chip-btn" data-amount="5000">5k</button>
-          <button type="button" class="chip-btn" data-amount="8000">8k</button>
+        <div class="field-row">
+          <label class="field">
+            <span>Source</span>
+            <input type="text" id="income-name" maxlength="60" placeholder="e.g. Salary, Allowance, Side Hustle…" required />
+          </label>
         </div>
+        <div class="field-row">
+          <label class="field">
+            <span>Amount (RM)</span>
+            <input type="number" id="income-amount" min="0.01" step="0.01" placeholder="0.00" required />
+          </label>
+          <label class="field">
+            <span>Date</span>
+            <input type="date" id="income-date" required />
+          </label>
+        </div>
+        <label class="field">
+          <span>Repeat monthly?</span>
+          <label class="switch">
+            <input type="checkbox" id="income-repeat" />
+            <span class="switch-slider"></span>
+          </label>
+          <div class="field-hint">Salary auto-fills every month 🔁</div>
+        </label>
         <div class="modal-actions">
           <button type="button" class="btn btn-ghost" data-close="income-modal">Cancel</button>
-          <button type="submit" class="btn btn-primary">Save income</button>
+          <button type="submit" class="btn btn-primary">Add income</button>
         </div>
       </form>
     </div>

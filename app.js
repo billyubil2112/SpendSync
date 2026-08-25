@@ -3,44 +3,93 @@
 /* ============================== CONSTANTS ============================== */
 
 const CATEGORIES = [
-  { name: 'Groceries', emoji: '🛒', color: '#34e0a1' },
-  { name: 'Dining Out', emoji: '🍜', color: '#ffb347' },
-  { name: 'Personal Care', emoji: '🧴', color: '#ff6b9d' },
-  { name: 'Transport', emoji: '🚗', color: '#4cc9f0' },
-  { name: 'Bills & Utilities', emoji: '💡', color: '#ffd166' },
-  { name: 'Housing', emoji: '🏠', color: '#9b8cff' },
-  { name: 'Shopping', emoji: '🛍️', color: '#f472b6' },
-  { name: 'Entertainment', emoji: '🎬', color: '#a3e635' },
-  { name: 'Health', emoji: '💊', color: '#2dd4bf' },
-  { name: 'Education', emoji: '📚', color: '#60a5fa' },
-  { name: 'Travel', emoji: '✈️', color: '#38bdf8' },
-  { name: 'Family & Kids', emoji: '👨‍👩‍👧', color: '#fbbf24' },
-  { name: 'Insurance', emoji: '🛡️', color: '#94a3b8' },
-  { name: 'Investments', emoji: '📈', color: '#4ade80' },
-  { name: 'Others', emoji: '📦', color: '#cbd5e1' }
+  { name: 'Groceries', emoji: '🛒', color: '#34e0a1', type: 'need' },
+  { name: 'Dining Out', emoji: '🍜', color: '#ffb347', type: 'want' },
+  { name: 'Personal Care', emoji: '🧴', color: '#ff6b9d', type: 'want' },
+  { name: 'Transport', emoji: '🚗', color: '#4cc9f0', type: 'need' },
+  { name: 'Bills & Utilities', emoji: '💡', color: '#ffd166', type: 'need' },
+  { name: 'Housing', emoji: '🏠', color: '#9b8cff', type: 'need' },
+  { name: 'Shopping', emoji: '🛍️', color: '#f472b6', type: 'want' },
+  { name: 'Entertainment', emoji: '🎬', color: '#a3e635', type: 'want' },
+  { name: 'Health', emoji: '💊', color: '#2dd4bf', type: 'need' },
+  { name: 'Education', emoji: '📚', color: '#60a5fa', type: 'need' },
+  { name: 'Travel', emoji: '✈️', color: '#38bdf8', type: 'want' },
+  { name: 'Family & Kids', emoji: '👨‍👩‍👧', color: '#fbbf24', type: 'need' },
+  { name: 'Insurance', emoji: '🛡️', color: '#94a3b8', type: 'need' },
+  { name: 'Investments', emoji: '📈', color: '#4ade80', type: 'save' },
+  { name: 'Others', emoji: '📦', color: '#cbd5e1', type: 'want' }
 ];
 const POT_EMOJIS = ['🎯', '🏖️', '📱', '🚗', '✈️', '🏠', '💍', '🎁', '💻', '🎓', '🐱', '🏋️', '🎸', '🚲'];
 
-const cat = (name) => CATEGORIES.find((c) => c.name === name) || { name, emoji: '📦', color: '#cbd5e1' };
+const ACHIEVEMENTS = [
+  { id: 'first_step', icon: '💸', title: 'First Step', desc: 'Log your first expense', test: () => state.expenses.length >= 1 },
+  { id: 'ten_spree', icon: '🧾', title: 'Ten Spree', desc: 'Log 10 transactions', test: () => state.expenses.length >= 10 },
+  { id: 'budget_wizard', icon: '🎯', title: 'Budget Wizard', desc: 'Set a monthly budget', test: () => Object.values(state.budgets).some((b) => b > 0) },
+  { id: 'payday', icon: '💵', title: 'Payday!', desc: 'Add your first income entry', test: () => state.incomes.length >= 1 },
+  { id: 'dreamer', icon: '🏺', title: 'Dreamer', desc: 'Create a saving pot', test: () => state.pots.length >= 1 },
+  { id: 'pot_overlord', icon: '🏆', title: 'Pot Overlord', desc: 'Fully fund a saving pot', test: () => state.pots.some((p) => p.target > 0 && p.saved >= p.target) },
+  { id: 'hot_streak', icon: '🔥', title: 'Hot Streak', desc: '7 days on pace in a row', test: () => onPaceStreak(monthKey(today())) >= 7 },
+  { id: 'frugal_month', icon: '🧊', title: 'Frugal Month', desc: 'Finish a month under budget', test: () => {
+    const prev = shiftMonth(monthKey(today()), -1);
+    const b = state.budgets[prev] || 0;
+    const s = sum(expensesInMonth(prev));
+    return b > 0 && s > 0 && s <= b;
+  } },
+  { id: 'taste_tester', icon: '😊', title: 'Taste Tester', desc: 'Rate your first expense', test: () => state.expenses.some((e) => e.rate >= 1 && e.rate <= 5) },
+  { id: 'set_and_forget', icon: '🔁', title: 'Set & Forget', desc: 'Create a recurring tracker', test: () => state.expenses.some((e) => e.repeat) || state.incomes.some((i) => i.repeat) },
+  { id: 'cat_max', icon: '👑', title: 'Money Cat Boss', desc: 'Level your cat to the max', test: () => (state.pet.xp || 0) >= PET_LEVELS[PET_LEVELS.length - 1].xp }
+];
+
+const PET_LEVELS = [
+  { xp: 0, tag: 'Lil Furball', line: 'Meow! Just a kitten with big dreams.' },
+  { xp: 60, tag: 'Curious Kitten', line: 'Purring at every ringgit you save.' },
+  { xp: 160, tag: 'Budget Whisker', line: 'Sharp eyes. Sharper budget.' },
+  { xp: 320, tag: 'Money Hunter', line: 'Hunts discounts. Guards your wallet.' },
+  { xp: 560, tag: 'MONEY BOSS', line: 'THE MONEY BOSS HAS ARRIVED.' }
+];
+
+const INCOME_EMOJIS = ['💰', '💵', '🏦', '🎓', '💼', '📈', '🧧', '🤑'];
+
+const PET_NAMES_TIPS = [
+  { mood: 'grumpy', tips: ['Rawr… slow down today, human.', 'You call that a budget? Mrrow.', 'Stomach says no to this spending.'] },
+  { mood: 'worried', tips: ['Meow… keep an eye on the pace.', 'The wallet meows for mercy.', 'Eyes on the ringgit, up up up.'] },
+  { mood: 'happy', tips: ['On track! Keep going!', 'Purrfect measuring of monies.', 'Treat me with a pot fund later? 😼'] }
+];
+
+const cat = (name) => CATEGORIES.find((c) => c.name === name) || { name, emoji: '📦', color: '#cbd5e1', type: 'want' };
 
 /* ============================== STATE ============================== */
 
-const DATA_KEY = 'spendsync_data_v2';
+const DATA_KEY = 'spendsync_data_v3';
+
+function normalizeState(raw) {
+  const d = raw || {};
+  const state = {
+    budgets: d.budgets || {},
+    expenses: (d.expenses || []).map((e) => Object.assign({ id: e.id || uid(), createdAt: e.createdAt || new Date().toISOString(), repeat: false, rate: 0 }, e)),
+    pots: (d.pots || []).map((p) => (Object.assign({ id: p.id || uid(), createdAt: p.createdAt || new Date().toISOString() }, p))),
+    incomes: (d.incomes || []).map((i) => Object.assign({ id: i.id || uid(), createdAt: i.createdAt || new Date().toISOString() }, i)),
+    pet: d.pet || { xp: 0 },
+    awards: Array.isArray(d.awards) ? d.awards : []
+  };
+  // migrate legacy flat income map { 'YYYY-MM': amount } into entries
+  if (d.income && typeof d.income === 'object' && !d.incomes) {
+    Object.entries(d.income).forEach(([k, v]) => {
+      if (!(v > 0)) return;
+      const has = state.incomes.some((i) => i.date && i.date.startsWith(k));
+      if (!has) state.incomes.push({ id: uid(), createdAt: new Date().toISOString(), name: 'Salary', emoji: '💰', amount: v, date: k + '-01', repeat: false });
+    });
+    delete d.income;
+  }
+  return state;
+}
 
 function loadData() {
   try {
     const raw = localStorage.getItem(DATA_KEY);
-    if (raw) {
-      const d = JSON.parse(raw);
-      return {
-        budgets: d.budgets || {},
-        expenses: Array.isArray(d.expenses) ? d.expenses : [],
-        pots: Array.isArray(d.pots) ? d.pots : [],
-        income: d.income || {}
-      };
-    }
+    if (raw) return normalizeState(JSON.parse(raw));
   } catch (e) { /* corrupted storage -> start fresh */ }
-  return { budgets: {}, expenses: [], pots: [], income: {} };
+  return normalizeState({});
 }
 
 function saveData() {
@@ -151,6 +200,56 @@ function expensesInMonth(key) {
 
 function sum(list) { return list.reduce((a, e) => a + e.amount, 0); }
 
+/* ============================== INCOME ============================== */
+
+function incomesInMonth(key) {
+  return state.incomes.filter((i) => i.date && i.date.startsWith(key));
+}
+
+function incomeForMonth(key) {
+  return sum(incomesInMonth(key));
+}
+
+/* ============================== RECURRING ============================== */
+
+// Returns { type: 'income'|'expense', item, targetKey } for every recurring
+// entry whose month-parity says it should appear in `key`.
+function recurringFor(key) {
+  const out = [];
+  state.incomes.forEach((i) => {
+    if (!i.repeat || !i.date) return;
+    if (monthOf(i.date) === key) out.push({ type: 'income', item: i });
+  });
+  state.expenses.forEach((e) => {
+    if (!e.repeat || !e.date) return;
+    if (monthOf(e.date) === key) out.push({ type: 'expense', item: e });
+  });
+  return out;
+}
+
+// Moves the "anchor" of a recurring entry forward one month (used when the
+// user navigates to the next month — recurring items follow along).
+function rollRecurring() {
+  let moved = 0;
+  const newKey = dashMonth;
+  const prevKey = shiftMonth(dashMonth, -1);
+  state.incomes.forEach((i) => {
+    if (!i.repeat || !i.date) return;
+    if (monthOf(i.date) !== prevKey) return;
+    i.date = newKey + '-' + pad(Math.min(Number(i.date.slice(8, 10)) || 1, daysInMonth(newKey)));
+    moved++;
+  });
+  state.expenses.forEach((e) => {
+    if (!e.repeat || !e.date) return;
+    if (monthOf(e.date) !== prevKey) return;
+    e.date = newKey + '-' + pad(Math.min(Number(e.date.slice(8, 10)) || 1, daysInMonth(newKey)));
+    moved++;
+  });
+  return moved;
+}
+
+function monthOf(d) { return d.slice(0, 7); }
+
 /* ============================== SOUND ============================== */
 
 let soundOn = localStorage.getItem('ss_sound') !== 'off';
@@ -203,6 +302,129 @@ function burst(scale) {
   });
 }
 
+/* ============================== PET ============================== */
+
+function catSVG(lv, mood) {
+  const boss = lv >= 4;
+  const adult = lv >= 2;
+  const fur = boss ? '#f5a742' : adult ? '#f4a23c' : '#f6b25a';
+  const dark = '#3c2a1e';
+  const inner = '#ffd9c0';
+  const eyeY = mood === 'grumpy' ? 84 : 82;
+  const eyes = mood === 'happy'
+    ? `<circle cx="80" cy="${eyeY}" r="7" fill="${dark}"/><circle cx="120" cy="${eyeY}" r="7" fill="${dark}"/><circle cx="82.5" cy="${eyeY - 2}" r="2.2" fill="#fff"/><circle cx="122.5" cy="${eyeY - 2}" r="2.2" fill="#fff"/>`
+    : `<circle cx="80" cy="${eyeY}" r="9" fill="${dark}"/><circle cx="120" cy="${eyeY}" r="9" fill="${dark}" opacity="0.35"/><circle cx="82.5" cy="${eyeY - 2.5}" r="2.6" fill="#fff"/>`;
+  const bangs = mood === 'grumpy'
+    ? `<path d="M70 71 L92 79" stroke="${dark}" stroke-width="4" stroke-linecap="round" fill="none"/><path d="M130 71 L108 79" stroke="${dark}" stroke-width="4" stroke-linecap="round" fill="none"/>` : '';
+  const mouth = mood === 'happy'
+    ? `<path d="M94 106 Q100 114 106 106" stroke="${dark}" stroke-width="4" stroke-linecap="round" fill="none"/>`
+    : mood === 'worried'
+      ? `<ellipse cx="100" cy="109" rx="4" ry="5.5" fill="${dark}"/>`
+      : `<path d="M92 112 Q100 104 108 112" stroke="${dark}" stroke-width="4" stroke-linecap="round" fill="none"/>`;
+  const sweat = mood === 'worried'
+    ? `<path d="M143 66 q6 8 0 12 q-7 -4 0 -12" fill="#7fc8ff" opacity="0.9"/>` : '';
+  const whiskers = `<g stroke="${dark}" stroke-width="2.5" opacity="0.5" stroke-linecap="round">
+    <path d="M62 96 L38 92"/><path d="M62 102 L40 104"/><path d="M138 96 L162 92"/><path d="M138 102 L160 104"/></g>`;
+  const collar = boss
+    ? `<rect x="66" y="${adult ? 132 : 122}" width="68" height="14" rx="7" fill="#e8503a"/><circle cx="100" cy="${adult ? 139 : 129}" r="8" fill="#ffd166"/><circle cx="100" cy="${adult ? 139 : 129}" r="3.4" fill="#e8a20a"/>`
+    : `<rect x="70" y="${adult ? 134 : 124}" width="60" height="12" rx="6" fill="#e8503a" opacity="0.9"/>`;
+  const crown = boss ? `<g><path d="M84 34 L88 48 L72 46 Z M116 34 L112 48 L128 46 Z" fill="#e8503a"/>
+    <path d="M78 46 L92 32 L100 44 L108 32 L122 46 L110 52 L90 52 Z" fill="#ffd166" stroke="#e8a20a" stroke-width="1.5"/>
+    <circle cx="100" cy="38" r="3.6" fill="#fff"/><circle cx="84" cy="40" r="2.4" fill="#fff"/><circle cx="116" cy="40" r="2.4" fill="#fff"/></g>` : '';
+  const star = (x, y, r) => `<path d="M${x} ${y - r} L${x + r * 0.3} ${y - r * 0.3} L${x + r} ${y} L${x + r * 0.3} ${y + r * 0.3} L${x} ${y + r} L${x - r * 0.3} ${y + r * 0.3} L${x - r} ${y} L${x - r * 0.3} ${y - r * 0.3} Z" fill="#ffd166"/>`;
+  const sparkles = boss ? `${star(152, 44, 7)}${star(46, 54, 5)}${star(160, 92, 4.5)}` : '';
+  const tail = `<path d="M${boss ? 62 : 66} ${adult ? 138 : 120} C 28 ${adult ? 150 : 132}, 20 ${adult ? 116 : 106}, 40 ${adult ? 108 : 102} C 46 ${adult ? 105 : 100}, 50 ${adult ? 112 : 108}, 46 ${adult ? 114 : 110}" stroke="${fur}" stroke-width="13" fill="none" stroke-linecap="round"/>`;
+  const ear = `<path d="M78 ${adult ? 52 : 58} L66 ${adult ? 18 : 26} L98 ${adult ? 36 : 46} Z" fill="${fur}"/><path d="M120 ${adult ? 52 : 58} L134 ${adult ? 18 : 26} L102 ${adult ? 36 : 46} Z" fill="${fur}"/><path d="M79 ${adult ? 50 : 56} L71 ${adult ? 28 : 34} L94 ${adult ? 41 : 48} Z" fill="${inner}"/><path d="M121 ${adult ? 50 : 56} L129 ${adult ? 28 : 34} L106 ${adult ? 41 : 48} Z" fill="${inner}"/>`;
+  const body = `<ellipse cx="100" cy="${adult ? 158 : 142}" rx="${adult ? 52 : 42}" ry="${adult ? 46 : 37}" fill="${fur}"/>`;
+  const paws = `<ellipse cx="76" cy="${adult ? 182 : 160}" rx="11" ry="7" fill="${fur}"/><ellipse cx="124" cy="${adult ? 182 : 160}" rx="11" ry="7" fill="${fur}"/><path d="M76 ${adult ? 168 : 150} q-4 ${adult ? 9 : 8} 0 ${adult ? 14 : 12}" stroke="${dark}" stroke-width="2.5" fill="none" opacity="0.35"/><path d="M124 ${adult ? 168 : 150} q4 ${adult ? 9 : 8} 0 ${adult ? 14 : 12}" stroke="${dark}" stroke-width="2.5" fill="none" opacity="0.35"/>`;
+  const headY = adult ? 82 : 88;
+  const head = `<circle cx="100" cy="${headY}" r="46" fill="${fur}"/>`;
+  return `<svg viewBox="0 0 200 204" xmlns="http://www.w3.org/2000/svg">
+  ${sparkles}${crown}${tail}${body}${paws}<g>${ear}${head}${eyes}${bangs}<g fill="rgba(232,80,58,0.28)"><ellipse cx="62" cy="99" rx="7" ry="4.5"/><ellipse cx="138" cy="99" rx="7" ry="4.5"/></g>${mouth}${collar}${whiskers}${sweat}</g>
+  <ellipse cx="138" cy="26" rx="2.6" ry="5" fill="${inner}" transform="rotate(-28 138 26)" opacity="0.65"/></svg>`;
+}
+
+function petLevel(xp) {
+  let lv = 0;
+  for (let i = 0; i < PET_LEVELS.length; i++) if (xp >= PET_LEVELS[i].xp) lv = i;
+  return lv;
+}
+
+function petXpInfo() {
+  const xp = state.pet.xp || 0;
+  const lv = petLevel(xp);
+  const cur = PET_LEVELS[lv];
+  const next = PET_LEVELS[lv + 1];
+  const into = xp - cur.xp;
+  const span = next ? next.xp - cur.xp : 1;
+  const pct = next ? Math.min(100, (into / span) * 100) : 100;
+  return { xp, lv, tag: cur.tag, line: cur.line, next, pct };
+}
+
+function petMood(key) {
+  const budget = state.budgets[key] || 0;
+  const spent = sum(expensesInMonth(key));
+  const income = incomeForMonth(key);
+  if (budget > 0 && spent > budget) return 'grumpy';
+  if (income > 0 && spent > income) return 'grumpy';
+  if (budget > 0 && spent > budget * 0.85) return 'worried';
+  return 'happy';
+}
+
+function petTip(mood) {
+  const arr = PET_NAMES_TIPS[mood] || PET_NAMES_TIPS.happy;
+  return arr[Math.floor(Math.random() * arr.length)];
+}
+
+function addPetXp(n) {
+  const before = petLevel(state.pet.xp || 0);
+  state.pet.xp = (state.pet.xp || 0) + n;
+  const after = petLevel(state.pet.xp);
+  if (after > before) {
+    saveData();
+    sfx.success();
+    burst(1.5);
+    toast(`🐱 Level up! Duit is now ${PET_LEVELS[after].tag}!`, '⭐');
+  }
+}
+
+/* ============================== ACHIEVEMENTS ============================== */
+
+function checkAchievements() {
+  const unlocked = new Set(state.awards);
+  let newly = null;
+  ACHIEVEMENTS.forEach((a) => {
+    if (!unlocked.has(a.id) && a.test()) {
+      state.awards.push(a.id);
+      newly = a;
+    }
+  });
+  if (newly) {
+    saveData();
+    sfx.success();
+    setTimeout(() => burst(1.6), 250);
+    setTimeout(() => toast(`${newly.icon} Achievement unlocked: ${newly.title}!`, '🏆'), 300);
+  }
+}
+
+function renderPetWidget() {
+  const key = dashMonth;
+  const info = petXpInfo();
+  const mood = petMood(key);
+  const s = state.budgets[key] || 0;
+  const spent = sum(expensesInMonth(key));
+  const inc = incomeForMonth(key);
+  const net = inc - spent > 0;
+  const meta = s > 0 ? `${Math.round((spent / s) * 100)}% of budget used` : inc > 0 ? 'No budget set yet' : 'Set a budget to wake Duit up';
+
+  $('#pet-tag').textContent = info.tag;
+  $('#pet-line').textContent = info.line;
+  $('#pet-meta').textContent = meta + (inc > 0 ? ` · net ${net ? '+' : ''}${fmt(inc - spent)}` : '');
+  $('#pet-lv').textContent = 'LV ' + (info.lv + 1) + '/' + PET_LEVELS.length;
+  $('#pet-xp-fill').style.width = info.pct + '%';
+  $('#pet-svg').innerHTML = catSVG(info.lv, mood);
+}
+
 /* ============================== BOOTSTRAP ============================== */
 
 function boot() {
@@ -239,6 +461,7 @@ function toastUndo() {
   $('#undo-btn').addEventListener('click', () => {
     if (lastDeletedType === 'expense') state.expenses = [lastDeleted, ...state.expenses];
     else if (lastDeletedType === 'pot') state.pots = [lastDeleted, ...state.pots];
+    else if (lastDeletedType === 'income') state.incomes = [...state.incomes, lastDeleted];
     lastDeleted = null;
     lastDeletedType = null;
     el.remove();
@@ -261,11 +484,13 @@ function renderAll() {
   renderExpenses();
   renderPots();
   renderSummary();
+  renderPetWidget();
+  checkAchievements();
 }
 
 function renderBudget() {
   const budget = state.budgets[dashMonth] || 0;
-  const income = state.income[dashMonth] || 0;
+  const income = incomeForMonth(dashMonth);
   const spent = sum(expensesInMonth(dashMonth));
   const left = budget - spent;
   const net = income - spent;
@@ -289,8 +514,11 @@ function renderBudget() {
     netEl.className = 'hs-value';
   }
   const incLine = $('#income-line');
-  incLine.textContent = income > 0 ? 'Income ' + fmt(income) + ' · ' + (net >= 0 ? 'saved ' + fmt(net) : 'overspent ' + fmt(-net)) : 'Set your monthly income to see net savings.';
+  incLine.textContent = income > 0 ? 'Income ' + fmt(income) + ' · ' + (net >= 0 ? 'saved ' + fmt(net) : 'overspent ' + fmt(-net)) : 'Add income to see your net savings.';
   incLine.style.color = income > 0 ? (net >= 0 ? 'var(--accent)' : 'var(--danger)') : '';
+  renderPace();
+  renderStreakChips();
+  renderSplit();
 
   const circ = 2 * Math.PI * 52;
   const pct = budget > 0 ? Math.min(200, (spent / budget) * 100) : (spent > 0 ? 100 : 0);
@@ -299,6 +527,63 @@ function renderBudget() {
   ring.style.strokeDashoffset = circ * (1 - Math.min(1, pct / 100));
   $('#budget-pct').textContent = Math.round(Math.min(pct, 999)) + '%';
   ring.style.stroke = pct > 100 ? 'var(--danger)' : pct > 75 ? 'var(--warn)' : 'var(--accent)';
+}
+
+function renderPace() {
+  const budget = state.budgets[dashMonth] || 0;
+  const days = daysInMonth(dashMonth);
+  const todayNum = new Date().getDate();
+  const isCur = dashMonth === monthKey(iso(today()));
+  const daysLeft = isCur ? days - todayNum + 1 : days;
+  const spent = sum(expensesInMonth(dashMonth));
+  const elapsed = isCur ? todayNum : days;
+  const avg = elapsed ? spent / elapsed : 0;
+  const allowPerDay = budget > 0 ? budget / days : 0;
+  const pace = Math.max(0, allowPerDay - avg);
+  const fill = budget > 0 ? Math.min(100, (avg / allowPerDay) * 100) : 0;
+  const bar = $('#pace-bar-fill');
+  const num = $('#pace-num');
+  const cap = $('#pace-cap');
+  bar.style.width = (budget > 0 ? fill : 0) + '%';
+  bar.style.background = !budget || fill < 70 ? 'var(--accent)' : fill <= 100 ? 'linear-gradient(90deg,#ffd166,#ffb347)' : 'linear-gradient(90deg,#ff8a5b,#ff5c5c)';
+  if (!budget) { num.textContent = '—'; cap.textContent = 'Set a budget to see your daily pace'; return; }
+  num.textContent = fmt(pace);
+  cap.textContent = `left per day if you keep up · ${Math.round(fill)}% of allowance used today`;
+}
+
+function renderSplit() {
+  const budget = state.budgets[dashMonth] || 0;
+  const income = incomeForMonth(dashMonth);
+  const spent = sum(expensesInMonth(dashMonth));
+  if (income <= 0 && budget <= 0) { $('#split-box').innerHTML = '<div class="empty-state" style="padding:16px 6px"><span class="big">🌱</span>Add income and a budget to see your 50/30/20 split.</div>'; return; }
+  const goal = income > 0 ? income : budget;
+  const needs = Math.round(goal * 0.5);
+  const wants = Math.round(goal * 0.3);
+  const saves = Math.round(goal * 0.2);
+  const monthExp = expensesInMonth(dashMonth);
+  const spentNeed = sum(monthExp.filter((e) => cat(e.category).type === 'need'));
+  const spentWant = sum(monthExp.filter((e) => cat(e.category).type === 'want'));
+  const spentSave = Math.max(0, income - spent);
+  const rows = [
+    { icon: '🏠', label: 'Needs', alloc: needs, spent: spentNeed, color: '#4cc9f0' },
+    { icon: '🎈', label: 'Wants', alloc: wants, spent: spentWant, color: '#ff6b9d' },
+    { icon: '🐱', label: 'Savings', alloc: saves, spent: spentSave, color: '#ffd166' }
+  ];
+  $('#split-box').innerHTML = rows.map((r) => {
+    const pct = r.alloc > 0 ? Math.min(100, (r.spent / r.alloc) * 100) : 0;
+    const over = r.spent > r.alloc;
+    const save = r.label === 'Savings';
+    const bad = over && !save;
+    const extra = bad ? ' <span class="split-over">· over!</span>' : save && over ? ' <span class="split-over good">· solid!</span>' : '';
+    const glow = bad ? 'box-shadow:0 0 10px ' + r.color : '';
+    return `<div class="split-row">
+      <div class="split-head">
+        <span>${r.icon} ${r.label}</span>
+        <span>${fmt(r.spent)} / <b>${fmt(r.alloc)}</b>${extra}</span>
+      </div>
+      <div class="split-bar"><i style="width:${pct}%;background:${r.color};${glow}"></i></div>
+    </div>`;
+  }).join('');
 }
 
 function renderPeriod() {
@@ -422,10 +707,14 @@ function renderExpenses() {
   }
   list.innerHTML = monthExp.map((e, i) => {
     const c = cat(e.category);
+    const flags = [
+      e.repeat ? '<span class="exp-flag" title="Repeats monthly">🔁</span>' : '',
+      e.rate ? `<span class="exp-flag" title="${RATE_LABELS[e.rate]}">${RATE_EMOJIS[e.rate]}</span>` : ''
+    ].join('');
     return `<div class="expense-item" style="animation-delay:${Math.min(i, 20) * 30}ms">
       <div class="exp-icon" style="background:${c.color}22">${c.emoji}</div>
       <div class="exp-main">
-        <div class="exp-name">${esc(e.name)} <span class="exp-tag" style="color:${c.color};background:${c.color}1a">${esc(e.category)}</span></div>
+        <div class="exp-name">${esc(e.name)} ${flags}<span class="exp-tag" style="color:${c.color};background:${c.color}1a">${esc(e.category)}</span></div>
         <div class="exp-meta">${fmtDate(e.date)} · ${weekday(e.date)}${e.notes ? ' · <span class="exp-notes">' + esc(e.notes) + '</span>' : ''}</div>
       </div>
       <div class="exp-amount">${fmt(e.amount)}</div>
@@ -485,8 +774,10 @@ function renderSummary() {
   const monthExp = expensesInMonth(summaryMonth).sort((a, b) => (b.date < a.date ? -1 : b.date > a.date ? 1 : 0));
   const spent = sum(monthExp);
   const budget = state.budgets[summaryMonth] || 0;
-  const income = state.income[summaryMonth] || 0;
+  const income = incomeForMonth(summaryMonth);
   const net = income - spent;
+  const rated = monthExp.filter((e) => e.rate >= 1 && e.rate <= 5);
+  const score = rated.length ? Math.round((rated.reduce((a, e) => a + e.rate, 0) / rated.length) * 10) / 10 : 0;
   const byCat = {};
   monthExp.forEach((e) => { byCat[e.category] = (byCat[e.category] || 0) + e.amount; });
   const top = Object.entries(byCat).sort((a, b) => b[1] - a[1])[0];
@@ -515,13 +806,14 @@ function renderSummary() {
 
   const stats = [
     { label: 'Total spent', value: fmt(spent), sub: monthExp.length + ' transactions' },
-    { label: 'Income', value: income > 0 ? fmt(income) : '—', sub: income > 0 ? 'not counted as spent' : 'not set' },
+    { label: 'Income', value: income > 0 ? fmt(income) : '—', sub: income > 0 ? incomesInMonth(summaryMonth).length + ' source(s)' : 'not set' },
     { label: 'Net savings', value: income > 0 ? fmt(net) : '—', cls: income > 0 ? (net >= 0 ? 'good' : 'bad') : '', sub: income > 0 ? 'income − spent' : 'set income to track' },
     { label: 'Budget', value: budget > 0 ? fmt(budget) : '—', sub: budget > 0 ? Math.round((spent / budget) * 100) + '% used' : 'not set' },
     { label: 'Remaining', value: budget > 0 ? fmt(budget - spent) : '—', sub: budget - spent < 0 ? 'over budget' : 'of budget' },
     { label: 'Daily average', value: fmt(dailyAvg), sub: 'per day so far' },
     { label: 'vs last month', value: compare.text, cls: compare.cls, sub: monthLabel(prevKey) },
     { label: 'Projected month-end', value: fmt(projected), sub: projSub },
+    { label: 'Value score', value: rated.length ? score.toFixed(1) + ' / 5' : '—', sub: rated.length ? rateEmoji(score) + ' from ' + rated.length + ' rating(s)' : 'rate expenses to unlock' },
     { label: 'Top category', value: top ? top[0] : '—', sub: top ? fmt(top[1]) : '' }
   ];
   $('#sum-stats').innerHTML = stats.map((s, i) => `
@@ -635,6 +927,44 @@ function randPotColor() {
   return CATEGORIES[Math.floor(Math.random() * CATEGORIES.length)].color;
 }
 
+const RATE_EMOJIS = ['', '😭', '😕', '😐', '🙂', '🥰'];
+const RATE_LABELS = ['', 'regret', 'meh', 'eh, ok', 'worth it', 'loved it'];
+
+function rateEmoji(score) {
+  return RATE_EMOJIS[Math.round(score)] || '😐';
+}
+
+// Consecutive days (ending today, inside the current month) where the
+// cumulative spending stayed at or under the budget pace.
+function onPaceStreak(key) {
+  const budget = state.budgets[key] || 0;
+  if (budget <= 0) return 0;
+  const days = daysInMonth(key);
+  const todayNum = new Date().getDate();
+  const monthStart = key + '-01';
+  let streak = 0;
+  for (let d = todayNum; d >= 1; d--) {
+    const dayStr = key + '-' + pad(d);
+    const cum = sum(expensesInRange(monthStart, dayStr));
+    const pace = budget * (d / days);
+    if (cum <= pace) streak++;
+    else break;
+  }
+  return streak;
+}
+
+function renderStreakChips() {
+  const key = dashMonth;
+  const isCur = key === monthKey(iso(today()));
+  const streak = isCur ? onPaceStreak(key) : 0;
+  const chips = $('#pace-chips');
+  if (!isCur) { chips.style.display = 'none'; return; }
+  chips.style.display = 'flex';
+  $('#streak-num').textContent = streak;
+  $('#streak-chip').classList.toggle('hot', streak >= 5);
+  $('#streak-chip').classList.toggle('ice', streak === 0);
+}
+
 /* ============================== MODALS ============================== */
 
 function openModal(id) {
@@ -686,8 +1016,23 @@ function openExpenseModal(exp) {
   $('#expense-category').value = exp ? exp.category : 'Groceries';
   $('#expense-date').value = exp ? exp.date : iso(today());
   $('#expense-notes').value = exp ? exp.notes || '' : '';
+  $('#expense-repeat').checked = exp ? !!exp.repeat : false;
+  $('#expense-rate-val').value = exp && exp.rate ? exp.rate : 0;
+  renderRateButtons(exp && exp.rate ? exp.rate : 0);
   $('#expense-delete').style.display = exp ? 'inline-flex' : 'none';
   openModal('#expense-modal');
+}
+
+function renderRateButtons(sel) {
+  document.querySelectorAll('.rate-btn').forEach((b) => {
+    b.classList.toggle('active', Number(b.dataset.rate) === sel);
+  });
+}
+
+function pickRate(rate) {
+  $('#expense-rate-val').value = rate;
+  renderRateButtons(rate);
+  sfx.click();
 }
 
 function openBudgetModal() {
@@ -721,16 +1066,21 @@ function saveExpense(ev) {
   const id = $('#expense-id').value;
   const exp = {
     id: id || uid(),
-    createdAt: new Date().toISOString(),
+    createdAt: id ? '' : new Date().toISOString(),
     name: $('#expense-name').value.trim(),
     amount: parseFloat($('#expense-amount').value),
     category: $('#expense-category').value,
     date: $('#expense-date').value,
-    notes: $('#expense-notes').value.trim()
+    notes: $('#expense-notes').value.trim(),
+    repeat: $('#expense-repeat').checked,
+    rate: Number($('#expense-rate-val').value) || 0
   };
   if (!exp.name) { sfx.error(); toast('Enter a name', '⚠️'); return; }
   if (!(exp.amount > 0)) { sfx.error(); toast('Amount must be more than 0', '⚠️'); return; }
+  const isNew = !id;
   if (id) {
+    const prev = state.expenses.find((e) => e.id === id);
+    exp.createdAt = prev ? prev.createdAt : new Date().toISOString();
     state.expenses = state.expenses.map((e) => (e.id === id ? exp : e));
     sfx.success();
     toast('Expense updated!', '✏️');
@@ -740,6 +1090,8 @@ function saveExpense(ev) {
     toast('Expense saved!', '💸');
     burst(1);
   }
+  if (isNew && exp.repeat) addPetXp(8);
+  if (isNew && exp.rate) addPetXp(3);
   closeModal('#expense-modal');
   saveData();
   renderAll();
@@ -769,26 +1121,73 @@ function saveBudget(ev) {
 
 function openIncomeModal() {
   $('#income-modal-month').textContent = monthLabel(dashMonth);
-  $('#income-input').value = state.income[dashMonth] || '';
+  $('#income-name').value = '';
+  $('#income-amount').value = '';
+  $('#income-date').value = dashMonth === monthKey(iso(today())) ? iso(today()) : dashMonth + '-01';
+  $('#income-repeat').checked = false;
+  $('#income-list').innerHTML = renderIncomeList();
   openModal('#income-modal');
 }
 
-function saveIncome(ev) {
+function renderIncomeList() {
+  const list = incomesInMonth(dashMonth);
+  if (list.length === 0) {
+    return '<div class="empty-state" style="padding:18px 6px"><span class="big">💵</span>No income added this month yet.</div>';
+  }
+  return list.map((i) => `
+    <div class="income-item">
+      <span class="income-ico">${esc(i.emoji || '💰')}</span>
+      <span class="income-main">
+        <b>${esc(i.name)}</b>
+        <small>${fmtDate(i.date)}${i.repeat ? ' · 🔁 repeats monthly' : ''}</small>
+      </span>
+      <span class="income-amt">+${fmt(i.amount)}</span>
+      <button class="mini-btn danger" data-act="del-income" data-id="${i.id}" aria-label="Delete income">🗑</button>
+    </div>`).join('');
+}
+
+function addIncome(ev) {
   ev.preventDefault();
-  const amount = parseFloat($('#income-input').value);
-  if (isNaN(amount) || amount < 0) { sfx.error(); toast('Enter a valid income', '⚠️'); return; }
-  state.income[dashMonth] = amount;
+  const name = $('#income-name').value.trim();
+  const amount = parseFloat($('#income-amount').value);
+  const date = $('#income-date').value || dashMonth + '-01';
+  const repeat = $('#income-repeat').checked;
+  if (!name) { sfx.error(); toast('Enter a source name', '⚠️'); return; }
+  if (!(amount > 0)) { sfx.error(); toast('Amount must be more than 0', '⚠️'); return; }
+  const emojiVisible = repeat ? '🔁' : '💰';
+  state.incomes.push({
+    id: uid(),
+    createdAt: new Date().toISOString(),
+    name,
+    amount,
+    emoji: repeat ? '🔁' : '💰',
+    date,
+    repeat
+  });
+  state.incomes = state.incomes.sort((a, b) => (a.date < b.date ? -1 : 1));
   saveData();
-  renderAll();
-  sfx.success();
-  toast(amount > 0 ? `Income set to ${fmt(amount)}` : 'Income cleared', amount > 0 ? '💰' : '🗑️');
+  sfx.coin();
+  toast(name + ' added to income', emojiVisible);
+  if (repeat) addPetXp(8);
+  addPetXp(5);
   closeModal('#income-modal');
+  renderAll();
+}
+
+function deleteIncome(id) {
+  const target = state.incomes.find((i) => i.id === id);
+  state.incomes = state.incomes.filter((i) => i.id !== id);
+  lastDeleted = target;
+  lastDeletedType = 'income';
+  saveData();
+  sfx.coin();
+  renderAll();
 }
 
 function backupData() {
   const payload = {
     app: 'spendsync',
-    version: 2,
+    version: 3,
     exportedAt: new Date().toISOString(),
     data: state
   };
@@ -806,13 +1205,8 @@ async function restoreData(ev) {
     const text = await file.text();
     const parsed = JSON.parse(text);
     const d = parsed && parsed.data ? parsed.data : parsed;
-    if (!d || !Array.isArray(d.expenses)) throw new Error('bad backup');
-    state = {
-      budgets: d.budgets || {},
-      expenses: d.expenses,
-      pots: Array.isArray(d.pots) ? d.pots : [],
-      income: d.income || {}
-    };
+    if (!d || (!Array.isArray(d.expenses) && !Array.isArray(d.incomes))) throw new Error('bad backup');
+    state = normalizeState(d);
     saveData();
     renderAll();
     sfx.success();
@@ -907,9 +1301,11 @@ function download(filename, content, type) {
 
 function downloadCSV() {
   const monthExp = expensesInMonth(summaryMonth).sort((a, b) => (a.date < b.date ? -1 : 1));
+  const incs = incomesInMonth(summaryMonth).sort((a, b) => (a.date < b.date ? -1 : 1));
   const rows = [
-    ['Date', 'Category', 'Name', 'Amount (RM)', 'Notes'],
-    ...monthExp.map((e) => [e.date, e.category, e.name, e.amount.toFixed(2), e.notes || ''])
+    ['Type', 'Date', 'Category', 'Name', 'Amount (RM)', 'Rating', 'Repeats', 'Notes'],
+    ...incs.map((i) => ['income', i.date, '—', i.name, i.amount.toFixed(2), '', i.repeat ? 'yes' : '', '']),
+    ...monthExp.map((e) => ['expense', e.date, e.category, e.name, e.amount.toFixed(2), e.rate ? e.rate : '', e.repeat ? 'yes' : '', e.notes || ''])
   ];
   const csv = rows.map((r) => r.map((v) => '"' + String(v).replace(/"/g, '""') + '"').join(',')).join('\r\n');
   download(`spendsync-${summaryMonth}.csv`, '\uFEFF' + csv, 'text/csv;charset=utf-8');
@@ -921,10 +1317,13 @@ function downloadReport() {
   const monthExp = expensesInMonth(summaryMonth).sort((a, b) => (a.date < b.date ? -1 : 1));
   const spent = sum(monthExp);
   const budget = state.budgets[summaryMonth] || 0;
-  const income = state.income[summaryMonth] || 0;
+  const income = incomeForMonth(summaryMonth);
   const net = income - spent;
   const byCat = {};
   monthExp.forEach((e) => { byCat[e.category] = (byCat[e.category] || 0) + e.amount; });
+  const incs = incomesInMonth(summaryMonth);
+  const rated = monthExp.filter((e) => e.rate >= 1 && e.rate <= 5);
+  const score = rated.length ? Math.round((rated.reduce((a, e) => a + e.rate, 0) / rated.length) * 10) / 10 : 0;
   const daysElapsed = summaryMonth === monthKey(iso(today())) ? Math.max(1, new Date().getDate()) : daysInMonth(summaryMonth);
 
   const lines = [];
@@ -942,7 +1341,13 @@ function downloadReport() {
   lines.push(`Remaining:    ${budget > 0 ? fmt(budget - spent) : '—'}${budget > 0 && budget - spent < 0 ? ' (OVER BUDGET!)' : ''}`);
   lines.push(`Transactions: ${monthExp.length}`);
   lines.push(`Daily avg:    ${fmt(spent / daysElapsed)}`);
+  lines.push(`Value score:  ${rated.length ? score.toFixed(1) + '/5 (' + rated.length + ' rated)' : '—'}`);
   lines.push('');
+  if (incs.length) {
+    lines.push('--- INCOME SOURCES ---');
+    incs.forEach((i) => lines.push(`  ${i.name.padEnd(18)} ${fmt(i.amount)}${i.repeat ? '  (repeats)' : ''}`));
+    lines.push('');
+  }
   lines.push('--- TOP CATEGORIES ---');
   Object.entries(byCat).sort((a, b) => b[1] - a[1]).forEach(([k, v]) => {
     lines.push(`  ${k.padEnd(18)} ${fmt(v)}`);
@@ -953,7 +1358,7 @@ function downloadReport() {
     lines.push('  (none)');
   } else {
     monthExp.forEach((e) => {
-      lines.push(`  [${e.date}] ${e.name} — ${fmt(e.amount)} (${e.category})${e.notes ? ' — ' + e.notes : ''}`);
+      lines.push(`  [${e.date}] ${e.name} — ${fmt(e.amount)} (${e.category})${e.rate ? ' ' + RATE_EMOJIS[e.rate] : ''}${e.repeat ? ' 🔁' : ''}${e.notes ? ' — ' + e.notes : ''}`);
     });
   }
   lines.push('');
@@ -974,13 +1379,54 @@ function switchTab(name) {
   sfx.click();
   if (name === 'pots') renderPots();
   if (name === 'summary') renderSummary();
+  if (name === 'cat') renderCatTab();
+}
+
+function renderCatTab() {
+  const info = petXpInfo();
+  const key = dashMonth;
+  const mood = petMood(key);
+  $('#cat-svg-big').innerHTML = catSVG(info.lv, mood);
+  $('#cat-name').textContent = state.petName || 'Duit';
+  $('#cat-level').textContent = 'LV ' + (info.lv + 1) + ' · ' + info.tag;
+  $('#cat-line').textContent = info.line;
+  $('#cat-xp').textContent = info.xp + ' XP' + (info.next ? ' · ' + (info.next.xp - info.xp) + ' to ' + info.next.tag : ' · MAX LEVEL');
+  $('#cat-xp-fill-big').style.width = info.pct + '%';
+  $('#cat-meta').textContent = petMoodText(mood);
+  const shelf = $('#ach-shelf');
+  const have = new Set(state.awards);
+  shelf.innerHTML = ACHIEVEMENTS.map((a) => {
+    const got = have.has(a.id);
+    return `<div class="ach ${got ? 'got' : 'locked'}">
+      <span class="ach-ico">${got ? a.icon : '🔒'}</span>
+      <span class="ach-txt"><b>${esc(a.title)}</b><small>${esc(a.desc)}</small></span>
+      ${got ? '<span class="ach-check">✓</span>' : ''}
+    </div>`;
+  }).join('');
+  const count = state.awards.length;
+  $('#ach-count').textContent = count + ' / ' + ACHIEVEMENTS.length;
+}
+
+function petMoodText(mood) {
+  return {
+    grumpy: '🙀 Grumpy — overspent this month!',
+    worried: '😿 Worried — getting close to your budget.',
+    happy: '😻 Happy — money is flowing nicely!'
+  }[mood];
 }
 
 function setupEvents() {
   document.querySelectorAll('.tab').forEach((t) => t.addEventListener('click', () => switchTab(t.dataset.tab)));
 
-  $('#prev-month').addEventListener('click', () => { dashMonth = shiftMonth(dashMonth, -1); renderBudget(); renderPeriod(); renderCharts(); renderCategories(); renderExpenses(); sfx.click(); });
-  $('#next-month').addEventListener('click', () => { dashMonth = shiftMonth(dashMonth, 1); renderBudget(); renderPeriod(); renderCharts(); renderCategories(); renderExpenses(); sfx.click(); });
+  function navMonth(delta) {
+    dashMonth = shiftMonth(dashMonth, delta);
+    const moved = rollRecurring();
+    if (moved) { saveData(); toast(moved + ' recurring item(s) rolled into ' + monthLabel(dashMonth), '🔁'); }
+    renderBudget(); renderPeriod(); renderCharts(); renderCategories(); renderExpenses(); renderPetWidget();
+    sfx.click();
+  }
+  $('#prev-month').addEventListener('click', () => navMonth(-1));
+  $('#next-month').addEventListener('click', () => navMonth(1));
   $('#sum-prev').addEventListener('click', () => { summaryMonth = shiftMonth(summaryMonth, -1); year = Number(summaryMonth.slice(0, 4)); renderSummary(); sfx.click(); });
   $('#sum-next').addEventListener('click', () => { summaryMonth = shiftMonth(summaryMonth, 1); year = Number(summaryMonth.slice(0, 4)); renderSummary(); sfx.click(); });
   $('#year-prev').addEventListener('click', () => { year--; const [y, m] = summaryMonth.split('-'); summaryMonth = year + '-' + m; renderSummary(); sfx.click(); });
@@ -1003,9 +1449,20 @@ function setupEvents() {
 
   $('#expense-form').addEventListener('submit', saveExpense);
   $('#budget-form').addEventListener('submit', saveBudget);
-  $('#income-form').addEventListener('submit', saveIncome);
+  $('#income-form').addEventListener('submit', addIncome);
   $('#pot-form').addEventListener('submit', savePot);
   $('#fund-form').addEventListener('submit', fundPot);
+
+  document.querySelectorAll('.rate-btn').forEach((b) => {
+    b.addEventListener('click', () => pickRate(Number(b.dataset.rate)));
+  });
+  $('#rate-clear').addEventListener('click', () => pickRate(0));
+  $('#income-list').addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-act="del-income"]');
+    if (!btn) return;
+    deleteIncome(btn.dataset.id);
+    $('#income-list').innerHTML = renderIncomeList();
+  });
 
   $('#expense-delete').addEventListener('click', async () => {
     const id = $('#expense-id').value;
@@ -1033,6 +1490,23 @@ function setupEvents() {
     localStorage.setItem('ss_sound', soundOn ? 'on' : 'off');
     updateSoundBtn();
     if (soundOn) sfx.success();
+  });
+
+  $('#pet-svg').addEventListener('click', () => {
+    addPetXp(2);
+    renderPetWidget();
+    sfx.coin();
+    toast('Duit purrs (+2 XP)', '🐱');
+  });
+
+  $('#rename-pet-btn').addEventListener('click', () => {
+    const name = prompt('Name your money cat:', state.petName || 'Duit');
+    if (name && name.trim()) {
+      state.petName = name.trim().slice(0, 24);
+      saveData();
+      renderCatTab();
+      sfx.success();
+    }
   });
 
   $('#download-csv').addEventListener('click', downloadCSV);
