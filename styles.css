@@ -425,6 +425,19 @@ body {
 .pet-card { position: relative; }
 .cat-svg-wrap { position: relative; }
 
+/* Face swap while petted: normal face hides, happy closed-eye face shows */
+.cat-face-happy { opacity: 0; transition: opacity 0.1s; }
+.pet-svg.petted .cat-face-normal, .cat-svg-wrap.petted .cat-face-normal { opacity: 0; }
+.pet-svg.petted .cat-face-happy, .cat-svg-wrap.petted .cat-face-happy { opacity: 1; }
+
+/* Purr vibration on the inner svg while petted */
+.pet-svg.petted > svg, .cat-svg-wrap.petted > svg { animation: catPurr 0.09s ease-in-out 5; }
+@keyframes catPurr {
+  0%, 100% { transform: translateX(0) rotate(0); }
+  25% { transform: translateX(-1.6px) rotate(-0.6deg); }
+  75% { transform: translateX(1.6px) rotate(0.6deg); }
+}
+
 .pet-card:active .pet-svg { animation: petBounce 0.4s ease; }
 @keyframes petBounce { 0% { transform: scale(1); } 40% { transform: scale(1.12) rotate(-4deg); } 100% { transform: scale(1); } }
 .pet-info { flex: 1; min-width: 0; }

@@ -337,10 +337,13 @@ function catSVG(lv, mood) {
   const ear = `<path d="M78 ${adult ? 52 : 58} L66 ${adult ? 18 : 26} L98 ${adult ? 36 : 46} Z" fill="${fur}"/><path d="M120 ${adult ? 52 : 58} L134 ${adult ? 18 : 26} L102 ${adult ? 36 : 46} Z" fill="${fur}"/><path d="M79 ${adult ? 50 : 56} L71 ${adult ? 28 : 34} L94 ${adult ? 41 : 48} Z" fill="${inner}"/><path d="M121 ${adult ? 50 : 56} L129 ${adult ? 28 : 34} L106 ${adult ? 41 : 48} Z" fill="${inner}"/>`;
   const body = `<ellipse cx="100" cy="${adult ? 158 : 142}" rx="${adult ? 52 : 42}" ry="${adult ? 46 : 37}" fill="${fur}"/>`;
   const paws = `<ellipse cx="76" cy="${adult ? 182 : 160}" rx="11" ry="7" fill="${fur}"/><ellipse cx="124" cy="${adult ? 182 : 160}" rx="11" ry="7" fill="${fur}"/><path d="M76 ${adult ? 168 : 150} q-4 ${adult ? 9 : 8} 0 ${adult ? 14 : 12}" stroke="${dark}" stroke-width="2.5" fill="none" opacity="0.35"/><path d="M124 ${adult ? 168 : 150} q4 ${adult ? 9 : 8} 0 ${adult ? 14 : 12}" stroke="${dark}" stroke-width="2.5" fill="none" opacity="0.35"/>`;
+  const blush = `<g fill="rgba(232,80,58,0.28)"><ellipse cx="62" cy="99" rx="7" ry="4.5"/><ellipse cx="138" cy="99" rx="7" ry="4.5"/></g>`;
+  const happyEyes = `<g stroke="${dark}" stroke-width="4.5" stroke-linecap="round" fill="none"><path d="M72 ${eyeY} q8 -9 16 0"/><path d="M112 ${eyeY} q8 -9 16 0"/></g>`;
+  const happyMouth = `<g><path d="M90 103 q10 12 20 0" stroke="${dark}" stroke-width="4" stroke-linecap="round" fill="none"/><path d="M94 108 q6 6 12 0 q-1 3.5 -6 3.5 q-5 0 -6 -3.5" fill="#ff8a9e"/></g>`;
   const headY = adult ? 82 : 88;
   const head = `<circle cx="100" cy="${headY}" r="46" fill="${fur}"/>`;
   return `<svg viewBox="0 0 200 204" xmlns="http://www.w3.org/2000/svg">
-  ${sparkles}${crown}${tail}${body}${paws}<g>${ear}${head}${eyes}${bangs}<g fill="rgba(232,80,58,0.28)"><ellipse cx="62" cy="99" rx="7" ry="4.5"/><ellipse cx="138" cy="99" rx="7" ry="4.5"/></g>${mouth}${collar}${whiskers}${sweat}</g>
+  ${sparkles}${crown}${tail}${body}${paws}<g>${ear}${head}${whiskers}${blush}${collar}<g class="cat-face-normal">${eyes}${bangs}${mouth}${sweat}</g><g class="cat-face-happy">${happyEyes}${happyMouth}</g></g>
   <ellipse cx="138" cy="26" rx="2.6" ry="5" fill="${inner}" transform="rotate(-28 138 26)" opacity="0.65"/></svg>`;
 }
 
@@ -393,6 +396,8 @@ function petReaction(svgEl) {
   svgEl.classList.remove('petted');
   void svgEl.offsetWidth;
   svgEl.classList.add('petted');
+  if (svgEl._pettedTimer) clearTimeout(svgEl._pettedTimer);
+  svgEl._pettedTimer = setTimeout(() => svgEl.classList.remove('petted'), 750);
   const host = svgEl.closest('.pet-card') || svgEl.closest('.cat-svg-wrap');
   const hearts = ['❤️', '🐟', '⭐', '💛'];
   for (let i = 0; i < 4; i++) {
