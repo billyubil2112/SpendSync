@@ -1,4 +1,4 @@
-const CACHE = 'spendsync-v1';
+const CACHE = 'spendsync-v2';
 const ASSETS = [
   './',
   './index.html',
@@ -6,6 +6,7 @@ const ASSETS = [
   './app.js',
   './bg.jpg',
   './manifest.json',
+  './favicon.svg',
   './icon-192.png',
   './icon-512.png',
   './apple-touch-icon.png'
