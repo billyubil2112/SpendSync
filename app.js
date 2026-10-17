@@ -1,259 +1,27 @@
 'use strict';
 
-/* ============================== CONSTANTS ============================== */
+/* ============================================================
+   SpendSync — UI layer.
+   Data & pure logic live in state.js (globals: state, helpers).
+   ============================================================ */
 
-const CATEGORIES = [
-  { name: 'Groceries', emoji: '🛒', color: '#34e0a1', type: 'need' },
-  { name: 'Dining Out', emoji: '🍜', color: '#ffb347', type: 'want' },
-  { name: 'Personal Care', emoji: '🧴', color: '#ff6b9d', type: 'want' },
-  { name: 'Transport', emoji: '🚗', color: '#4cc9f0', type: 'need' },
-  { name: 'Bills & Utilities', emoji: '💡', color: '#ffd166', type: 'need' },
-  { name: 'Housing', emoji: '🏠', color: '#9b8cff', type: 'need' },
-  { name: 'Shopping', emoji: '🛍️', color: '#f472b6', type: 'want' },
-  { name: 'Entertainment', emoji: '🎬', color: '#a3e635', type: 'want' },
-  { name: 'Health', emoji: '💊', color: '#2dd4bf', type: 'need' },
-  { name: 'Education', emoji: '📚', color: '#60a5fa', type: 'need' },
-  { name: 'Travel', emoji: '✈️', color: '#38bdf8', type: 'want' },
-  { name: 'Family & Kids', emoji: '👨‍👩‍👧', color: '#fbbf24', type: 'need' },
-  { name: 'Insurance', emoji: '🛡️', color: '#94a3b8', type: 'need' },
-  { name: 'Investments', emoji: '📈', color: '#4ade80', type: 'save' },
-  { name: 'Others', emoji: '📦', color: '#cbd5e1', type: 'want' }
-];
-const POT_EMOJIS = ['🎯', '🏖️', '📱', '🚗', '✈️', '🏠', '💍', '🎁', '💻', '🎓', '🐱', '🏋️', '🎸', '🚲'];
+const $ = (sel) => document.querySelector(sel);
+const $$ = (sel) => [...document.querySelectorAll(sel)];
 
-const ACHIEVEMENTS = [
-  { id: 'first_step', icon: '💸', title: 'First Step', desc: 'Log your first expense', test: () => state.expenses.length >= 1 },
-  { id: 'ten_spree', icon: '🧾', title: 'Ten Spree', desc: 'Log 10 transactions', test: () => state.expenses.length >= 10 },
-  { id: 'budget_wizard', icon: '🎯', title: 'Budget Wizard', desc: 'Set a monthly budget', test: () => Object.values(state.budgets).some((b) => b > 0) },
-  { id: 'payday', icon: '💵', title: 'Payday!', desc: 'Add your first income entry', test: () => state.incomes.length >= 1 },
-  { id: 'dreamer', icon: '🏺', title: 'Dreamer', desc: 'Create a saving pot', test: () => state.pots.length >= 1 },
-  { id: 'pot_overlord', icon: '🏆', title: 'Pot Overlord', desc: 'Fully fund a saving pot', test: () => state.pots.some((p) => p.target > 0 && p.saved >= p.target) },
-  { id: 'hot_streak', icon: '🔥', title: 'Hot Streak', desc: '7 days on pace in a row', test: () => onPaceStreak(monthKey(today())) >= 7 },
-  { id: 'frugal_month', icon: '🧊', title: 'Frugal Month', desc: 'Finish a month under budget', test: () => {
-    const prev = shiftMonth(monthKey(today()), -1);
-    const b = state.budgets[prev] || 0;
-    const s = sum(expensesInMonth(prev));
-    return b > 0 && s > 0 && s <= b;
-  } },
-  { id: 'taste_tester', icon: '😊', title: 'Taste Tester', desc: 'Rate your first expense', test: () => state.expenses.some((e) => e.rate >= 1 && e.rate <= 5) },
-  { id: 'set_and_forget', icon: '🔁', title: 'Set & Forget', desc: 'Create a recurring tracker', test: () => state.expenses.some((e) => e.repeat) || state.incomes.some((i) => i.repeat) },
-  { id: 'cat_max', icon: '👑', title: 'Money Cat Boss', desc: 'Level your cat to the max', test: () => (state.pet.xp || 0) >= PET_LEVELS[PET_LEVELS.length - 1].xp }
-];
+const RATE_EMOJIS = ['', '😭', '😕', '😐', '🙂', '🥰'];
+const RATE_LABELS = ['', 'regret', 'meh', 'eh, ok', 'worth it', 'loved it'];
 
-const PET_LEVELS = [
-  { xp: 0, tag: 'Lil Furball', line: 'Meow! Just a kitten with big dreams.' },
-  { xp: 60, tag: 'Curious Kitten', line: 'Purring at every ringgit you save.' },
-  { xp: 160, tag: 'Budget Whisker', line: 'Sharp eyes. Sharper budget.' },
-  { xp: 320, tag: 'Money Hunter', line: 'Hunts discounts. Guards your wallet.' },
-  { xp: 560, tag: 'MONEY BOSS', line: 'THE MONEY BOSS HAS ARRIVED.' }
-];
-
-const INCOME_EMOJIS = ['💰', '💵', '🏦', '🎓', '💼', '📈', '🧧', '🤑'];
-
-const PET_NAMES_TIPS = [
-  { mood: 'grumpy', tips: ['Rawr… slow down today, human.', 'You call that a budget? Mrrow.', 'Stomach says no to this spending.'] },
-  { mood: 'worried', tips: ['Meow… keep an eye on the pace.', 'The wallet meows for mercy.', 'Eyes on the ringgit, up up up.'] },
-  { mood: 'happy', tips: ['On track! Keep going!', 'Purrfect measuring of monies.', 'Treat me with a pot fund later? 😼'] }
-];
-
-const cat = (name) => CATEGORIES.find((c) => c.name === name) || { name, emoji: '📦', color: '#cbd5e1', type: 'want' };
-
-/* ============================== STATE ============================== */
-
-const DATA_KEY = 'spendsync_data_v3';
-
-function normalizeState(raw) {
-  const d = raw || {};
-  const state = {
-    budgets: d.budgets || {},
-    expenses: (d.expenses || []).map((e) => Object.assign({ id: e.id || uid(), createdAt: e.createdAt || new Date().toISOString(), repeat: false, rate: 0 }, e)),
-    pots: (d.pots || []).map((p) => (Object.assign({ id: p.id || uid(), createdAt: p.createdAt || new Date().toISOString() }, p))),
-    incomes: (d.incomes || []).map((i) => Object.assign({ id: i.id || uid(), createdAt: i.createdAt || new Date().toISOString() }, i)),
-    pet: d.pet || { xp: 0 },
-    awards: Array.isArray(d.awards) ? d.awards : []
-  };
-  // migrate legacy flat income map { 'YYYY-MM': amount } into entries
-  if (d.income && typeof d.income === 'object' && !d.incomes) {
-    Object.entries(d.income).forEach(([k, v]) => {
-      if (!(v > 0)) return;
-      const has = state.incomes.some((i) => i.date && i.date.startsWith(k));
-      if (!has) state.incomes.push({ id: uid(), createdAt: new Date().toISOString(), name: 'Salary', emoji: '💰', amount: v, date: k + '-01', repeat: false });
-    });
-    delete d.income;
-  }
-  return state;
-}
-
-function loadData() {
-  try {
-    const raw = localStorage.getItem(DATA_KEY);
-    if (raw) return normalizeState(JSON.parse(raw));
-  } catch (e) { /* corrupted storage -> start fresh */ }
-  return normalizeState({});
-}
-
-function saveData() {
-  try {
-    localStorage.setItem(DATA_KEY, JSON.stringify(state));
-  } catch (e) {
-    toast('Could not save — storage is full or blocked.', '⚠️');
-  }
-}
-
-function uid() {
-  return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
-}
-
-let state = loadData();
-let view = 'dashboard';
+let view = 'home';
 let dashMonth = monthKey(today());
-let summaryMonth = monthKey(today());
-let period = 'day';
 let fundPotId = null;
 let lastDeleted = null;
 let lastDeletedType = null;
-
 let pieChart = null;
 let barChart = null;
-let yearChart = null;
-let year = new Date().getFullYear();
-
-const centerText = {
-  id: 'centerText',
-  afterDraw(chart, args, opts) {
-    if (!opts || opts.hide) return;
-    const { ctx, chartArea } = chart;
-    if (!chartArea || !chartArea.width) return;
-    const x = chartArea.left + chartArea.width / 2;
-    const y = chartArea.top + chartArea.height / 2;
-    ctx.save();
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.font = '800 22px "Plus Jakarta Sans", sans-serif';
-    ctx.fillStyle = 'rgba(244,247,255,0.96)';
-    ctx.fillText(opts.value || '', x, y - 9);
-    ctx.font = '600 11px "Plus Jakarta Sans", sans-serif';
-    ctx.fillStyle = 'rgba(244,247,255,0.6)';
-    ctx.fillText(opts.label || '', x, y + 14);
-    ctx.restore();
-  }
-};
-
-/* ============================== UTILS ============================== */
-
-const $ = (sel) => document.querySelector(sel);
-
-function pad(n) { return String(n).padStart(2, '0'); }
-
-function iso(d) { return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; }
-
-function today() {
-  const d = new Date();
-  return new Date(d.getFullYear(), d.getMonth(), d.getDate());
-}
-
-function monthKey(d) { return (typeof d === 'string' ? d : iso(d)).slice(0, 7); }
-
-function daysInMonth(key) {
-  const [y, m] = key.split('-').map(Number);
-  return new Date(y, m, 0).getDate();
-}
-
-function monthLabel(key) {
-  const [y, m] = key.split('-').map(Number);
-  return new Date(y, m - 1, 1).toLocaleDateString('en-MY', { month: 'long', year: 'numeric' });
-}
-
-function fmtDate(dStr) {
-  return new Date(dStr + 'T00:00:00').toLocaleDateString('en-MY', { day: 'numeric', month: 'short' });
-}
-
-function weekday(dStr) {
-  return new Date(dStr + 'T00:00:00').toLocaleDateString('en-MY', { weekday: 'short' });
-}
-
-function fmt(n) {
-  return 'RM ' + n.toLocaleString('en-MY', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-}
-
-function shiftMonth(key, delta) {
-  const [y, m] = key.split('-').map(Number);
-  const d = new Date(y, m - 1 + delta, 1);
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}`;
-}
-
-function weekRange() {
-  const now = today();
-  const dow = (now.getDay() + 6) % 7;
-  const mon = new Date(now); mon.setDate(now.getDate() - dow);
-  const sun = new Date(mon); sun.setDate(mon.getDate() + 6);
-  return [iso(mon), iso(sun)];
-}
-
-function expensesInRange(fromStr, toStr) {
-  return state.expenses.filter((e) => e.date >= fromStr && e.date <= toStr);
-}
-
-function expensesInMonth(key) {
-  return state.expenses.filter((e) => e.date.startsWith(key));
-}
-
-function sum(list) { return list.reduce((a, e) => a + e.amount, 0); }
-
-/* ============================== INCOME ============================== */
-
-function incomesInMonth(key) {
-  return state.incomes.filter((i) => i.date && i.date.startsWith(key));
-}
-
-function incomeForMonth(key) {
-  return sum(incomesInMonth(key));
-}
-
-/* ============================== RECURRING ============================== */
-
-// Returns { type: 'income'|'expense', item, targetKey } for every recurring
-// entry whose month-parity says it should appear in `key`.
-function recurringFor(key) {
-  const out = [];
-  state.incomes.forEach((i) => {
-    if (!i.repeat || !i.date) return;
-    if (monthOf(i.date) === key) out.push({ type: 'income', item: i });
-  });
-  state.expenses.forEach((e) => {
-    if (!e.repeat || !e.date) return;
-    if (monthOf(e.date) === key) out.push({ type: 'expense', item: e });
-  });
-  return out;
-}
-
-// Moves the "anchor" of a recurring entry forward one month (used when the
-// user navigates to the next month — recurring items follow along).
-function rollRecurring() {
-  let moved = 0;
-  const newKey = dashMonth;
-  const prevKey = shiftMonth(dashMonth, -1);
-  state.incomes.forEach((i) => {
-    if (!i.repeat || !i.date) return;
-    if (monthOf(i.date) !== prevKey) return;
-    i.date = newKey + '-' + pad(Math.min(Number(i.date.slice(8, 10)) || 1, daysInMonth(newKey)));
-    moved++;
-  });
-  state.expenses.forEach((e) => {
-    if (!e.repeat || !e.date) return;
-    if (monthOf(e.date) !== prevKey) return;
-    e.date = newKey + '-' + pad(Math.min(Number(e.date.slice(8, 10)) || 1, daysInMonth(newKey)));
-    moved++;
-  });
-  return moved;
-}
-
-function monthOf(d) { return d.slice(0, 7); }
-
-/* ============================== SOUND ============================== */
-
 let soundOn = localStorage.getItem('ss_sound') !== 'off';
 let audioCtx = null;
+
+/* ============================== SOUND ============================== */
 
 function ensureCtx() {
   if (!audioCtx) {
@@ -286,7 +54,7 @@ const sfx = {
 };
 
 function updateSoundBtn() {
-  $('#sound-btn').textContent = soundOn ? '🔊' : '🔇';
+  $('#sound-btn').textContent = soundOn ? '🔊 On' : '🔇 Off';
 }
 
 /* ============================== CONFETTI ============================== */
@@ -298,11 +66,47 @@ function burst(scale) {
     spread: 75,
     startVelocity: 42,
     origin: { x: 0.5, y: 0.7 },
-    colors: ['#34e0a1', '#7c6cff', '#ff6b9d', '#ffd166', '#4cc9f0']
+    colors: ['#8b7bff', '#2dd4bf', '#f7b733', '#ff5c7a', '#ffffff']
   });
 }
 
-/* ============================== PET ============================== */
+/* ============================== TOASTS ============================== */
+
+function toast(msg, emoji) {
+  const wrap = $('#toast-wrap');
+  const el = document.createElement('div');
+  el.className = 'toast';
+  el.innerHTML = `<span>${emoji || '✨'}</span><span>${msg}</span>`;
+  wrap.appendChild(el);
+  setTimeout(() => {
+    el.classList.add('hide');
+    setTimeout(() => el.remove(), 350);
+  }, 2600);
+}
+
+function toastUndo() {
+  const wrap = $('#toast-wrap');
+  const el = document.createElement('div');
+  el.className = 'toast';
+  el.style.cursor = 'pointer';
+  el.innerHTML = '<span>🗑️</span><span>Deleted</span><button class="ghost-btn small" id="undo-btn">Undo</button>';
+  wrap.appendChild(el);
+  $('#undo-btn').addEventListener('click', () => {
+    if (lastDeletedType === 'expense') state.expenses = [lastDeleted, ...state.expenses];
+    else if (lastDeletedType === 'pot') state.pots = [lastDeleted, ...state.pots];
+    else if (lastDeletedType === 'income') state.incomes = [...state.incomes, lastDeleted];
+    lastDeleted = null;
+    lastDeletedType = null;
+    el.remove();
+    saveData();
+    renderAll();
+    sfx.success();
+    toast('Restored!', '↩️');
+  });
+  setTimeout(() => el.remove(), 5000);
+}
+
+/* ============================== CAT SVG ============================== */
 
 function catSVG(lv, mood) {
   const boss = lv >= 4;
@@ -325,6 +129,9 @@ function catSVG(lv, mood) {
     ? `<path d="M143 66 q6 8 0 12 q-7 -4 0 -12" fill="#7fc8ff" opacity="0.9"/>` : '';
   const whiskers = `<g stroke="${dark}" stroke-width="2.5" opacity="0.5" stroke-linecap="round">
     <path d="M62 96 L38 92"/><path d="M62 102 L40 104"/><path d="M138 96 L162 92"/><path d="M138 102 L160 104"/></g>`;
+  const blush = `<g fill="rgba(232,80,58,0.28)"><ellipse cx="62" cy="99" rx="7" ry="4.5"/><ellipse cx="138" cy="99" rx="7" ry="4.5"/></g>`;
+  const happyEyes = `<g stroke="${dark}" stroke-width="4.5" stroke-linecap="round" fill="none"><path d="M72 ${eyeY} q8 -9 16 0"/><path d="M112 ${eyeY} q8 -9 16 0"/></g>`;
+  const happyMouth = `<g><path d="M90 103 q10 12 20 0" stroke="${dark}" stroke-width="4" stroke-linecap="round" fill="none"/><path d="M94 108 q6 6 12 0 q-1 3.5 -6 3.5 q-5 0 -6 -3.5" fill="#ff8a9e"/></g>`;
   const collar = boss
     ? `<rect x="66" y="${adult ? 132 : 122}" width="68" height="14" rx="7" fill="#e8503a"/><circle cx="100" cy="${adult ? 139 : 129}" r="8" fill="#ffd166"/><circle cx="100" cy="${adult ? 139 : 129}" r="3.4" fill="#e8a20a"/>`
     : `<rect x="70" y="${adult ? 134 : 124}" width="60" height="12" rx="6" fill="#e8503a" opacity="0.9"/>`;
@@ -337,9 +144,6 @@ function catSVG(lv, mood) {
   const ear = `<path d="M78 ${adult ? 52 : 58} L66 ${adult ? 18 : 26} L98 ${adult ? 36 : 46} Z" fill="${fur}"/><path d="M120 ${adult ? 52 : 58} L134 ${adult ? 18 : 26} L102 ${adult ? 36 : 46} Z" fill="${fur}"/><path d="M79 ${adult ? 50 : 56} L71 ${adult ? 28 : 34} L94 ${adult ? 41 : 48} Z" fill="${inner}"/><path d="M121 ${adult ? 50 : 56} L129 ${adult ? 28 : 34} L106 ${adult ? 41 : 48} Z" fill="${inner}"/>`;
   const body = `<ellipse cx="100" cy="${adult ? 158 : 142}" rx="${adult ? 52 : 42}" ry="${adult ? 46 : 37}" fill="${fur}"/>`;
   const paws = `<ellipse cx="76" cy="${adult ? 182 : 160}" rx="11" ry="7" fill="${fur}"/><ellipse cx="124" cy="${adult ? 182 : 160}" rx="11" ry="7" fill="${fur}"/><path d="M76 ${adult ? 168 : 150} q-4 ${adult ? 9 : 8} 0 ${adult ? 14 : 12}" stroke="${dark}" stroke-width="2.5" fill="none" opacity="0.35"/><path d="M124 ${adult ? 168 : 150} q4 ${adult ? 9 : 8} 0 ${adult ? 14 : 12}" stroke="${dark}" stroke-width="2.5" fill="none" opacity="0.35"/>`;
-  const blush = `<g fill="rgba(232,80,58,0.28)"><ellipse cx="62" cy="99" rx="7" ry="4.5"/><ellipse cx="138" cy="99" rx="7" ry="4.5"/></g>`;
-  const happyEyes = `<g stroke="${dark}" stroke-width="4.5" stroke-linecap="round" fill="none"><path d="M72 ${eyeY} q8 -9 16 0"/><path d="M112 ${eyeY} q8 -9 16 0"/></g>`;
-  const happyMouth = `<g><path d="M90 103 q10 12 20 0" stroke="${dark}" stroke-width="4" stroke-linecap="round" fill="none"/><path d="M94 108 q6 6 12 0 q-1 3.5 -6 3.5 q-5 0 -6 -3.5" fill="#ff8a9e"/></g>`;
   const headY = adult ? 82 : 88;
   const head = `<circle cx="100" cy="${headY}" r="46" fill="${fur}"/>`;
   return `<svg viewBox="0 0 200 204" xmlns="http://www.w3.org/2000/svg">
@@ -347,58 +151,12 @@ function catSVG(lv, mood) {
   <ellipse cx="138" cy="26" rx="2.6" ry="5" fill="${inner}" transform="rotate(-28 138 26)" opacity="0.65"/></svg>`;
 }
 
-function petLevel(xp) {
-  let lv = 0;
-  for (let i = 0; i < PET_LEVELS.length; i++) if (xp >= PET_LEVELS[i].xp) lv = i;
-  return lv;
-}
-
-function petXpInfo() {
-  const xp = state.pet.xp || 0;
-  const lv = petLevel(xp);
-  const cur = PET_LEVELS[lv];
-  const next = PET_LEVELS[lv + 1];
-  const into = xp - cur.xp;
-  const span = next ? next.xp - cur.xp : 1;
-  const pct = next ? Math.min(100, (into / span) * 100) : 100;
-  return { xp, lv, tag: cur.tag, line: cur.line, next, pct };
-}
-
-function petMood(key) {
-  const budget = state.budgets[key] || 0;
-  const spent = sum(expensesInMonth(key));
-  const income = incomeForMonth(key);
-  if (budget > 0 && spent > budget) return 'grumpy';
-  if (income > 0 && spent > income) return 'grumpy';
-  if (budget > 0 && spent > budget * 0.85) return 'worried';
-  return 'happy';
-}
-
-function petTip(mood) {
-  const arr = PET_NAMES_TIPS[mood] || PET_NAMES_TIPS.happy;
-  return arr[Math.floor(Math.random() * arr.length)];
-}
-
-function addPetXp(n) {
-  const before = petLevel(state.pet.xp || 0);
-  state.pet.xp = (state.pet.xp || 0) + n;
-  const after = petLevel(state.pet.xp);
-  if (after > before) {
-    saveData();
-    sfx.success();
-    burst(1.5);
-    toast(`🐱 Level up! Duit is now ${PET_LEVELS[after].tag}!`, '⭐');
-  }
-}
-
-// Trigger a happy animation on the tapped cat: squash-stretch + wag + hearts.
 function petReaction(svgEl) {
   svgEl.classList.remove('petted');
   void svgEl.offsetWidth;
   svgEl.classList.add('petted');
   if (svgEl._pettedTimer) clearTimeout(svgEl._pettedTimer);
   svgEl._pettedTimer = setTimeout(() => svgEl.classList.remove('petted'), 750);
-  const host = svgEl.closest('.pet-card') || svgEl.closest('.cat-svg-wrap');
   const hearts = ['❤️', '🐟', '⭐', '💛'];
   for (let i = 0; i < 4; i++) {
     const h = document.createElement('span');
@@ -408,12 +166,271 @@ function petReaction(svgEl) {
     h.style.bottom = 24 + Math.random() * 40 + '%';
     h.style.animationDelay = Math.random() * 0.3 + 's';
     h.style.fontSize = 0.8 + Math.random() * 0.7 + 'rem';
-    host.appendChild(h);
+    svgEl.appendChild(h);
     setTimeout(() => h.remove(), 1500);
   }
 }
 
-/* ============================== ACHIEVEMENTS ============================== */
+/* ============================== RENDER ============================== */
+
+function renderAll() {
+  renderHome();
+  renderAnalytics();
+  renderBudget();
+  checkAchievements();
+}
+
+/* ---------- HOME ---------- */
+
+function renderHome() {
+  const key = dashMonth;
+  const isCur = key === monthKey(today());
+  const budget = state.budgets[key] || 0;
+  const days = daysInMonth(key);
+  const monthTxns = expensesInMonth(key);
+  const dailyTxns = monthTxns.filter((t) => t.budgetImpact === 'daily');
+  const capitalTxns = monthTxns.filter((t) => t.budgetImpact !== 'daily');
+  const capitalSpent = sum(capitalTxns);
+  const dailySpent = sum(dailyTxns);
+  const todayStr = iso(today());
+  const todayTxns = state.expenses.filter((t) => t.date === todayStr && t.budgetImpact === 'daily');
+  const dailyAllow = budget > 0 ? budget / days : 0;
+  const remaining = budget > 0 ? calculateDailyPace(todayTxns, dailyAllow) : 0;
+
+  $('#home-month').textContent = monthLabel(key);
+  const el = $('#home-allowance');
+  if (budget > 0) {
+    el.textContent = Math.max(0, remaining).toFixed(2);
+    el.style.color = remaining < 0 ? 'var(--danger)' : 'var(--text)';
+    const used = dailyAllow - remaining;
+    const pct = Math.min(100, Math.max(0, (used / dailyAllow) * 100));
+    const fill = $('#home-pace-fill');
+    fill.style.width = pct + '%';
+    fill.style.background = pct > 100
+      ? 'linear-gradient(90deg, #ff5c7a, #ff2d55)'
+      : pct > 75
+        ? 'linear-gradient(90deg, #ffc24b, #ff9f43)'
+        : 'linear-gradient(90deg, var(--cyan), var(--accent))';
+    $('#home-used').textContent = fmt(used) + ' used today';
+    $('#home-left').textContent = remaining >= 0 ? fmt(remaining) + ' left today' : 'Over by ' + fmt(-remaining);
+  } else {
+    el.textContent = '0.00';
+    el.style.color = 'var(--faint)';
+    $('#home-pace-fill').style.width = '0%';
+    $('#home-used').textContent = 'Set a budget to start pacing';
+    $('#home-left').textContent = 'Budget tab → Fixed Monthly Budget';
+  }
+
+  // Streak chip
+  const streak = isCur ? onPaceStreak(key) : 0;
+  const streakRow = $('#streak-row');
+  if (budget > 0 && isCur) {
+    streakRow.style.display = 'flex';
+    $('#streak-num').textContent = streak;
+    $('#streak-chip').classList.toggle('hot', streak >= 5);
+    $('#streak-chip').classList.toggle('ice', streak === 0);
+    $('#capital-amt').textContent = fmt(capitalSpent);
+  } else {
+    streakRow.style.display = budget > 0 ? 'flex' : 'none';
+    $('#streak-num').textContent = '—';
+    $('#capital-amt').textContent = fmt(capitalSpent);
+  }
+
+  // Today list
+  const todayAll = state.expenses.filter((t) => t.date === todayStr);
+  $('#home-count').textContent = todayAll.length + ' transaction' + (todayAll.length === 1 ? '' : 's');
+  $('#home-list').innerHTML = todayAll.length
+    ? todayAll.map(txnItem).join('')
+    : '<p class="txn-empty">Nothing today yet. Enjoy the quiet.</p>';
+
+  // Month list
+  const sorted = [...monthTxns].sort((a, b) => (b.date < a.date ? -1 : b.date > a.date ? 1 : 0));
+  $('#month-list').innerHTML = sorted.length
+    ? sorted.map((t) => txnItem(t, true)).join('')
+    : '<p class="txn-empty">No transactions in ' + monthLabel(key) + '.</p>';
+}
+
+function txnItem(t, withActions) {
+  const actions = withActions
+    ? `<div class="txn-actions">
+        <button class="ghost-btn small" data-act="edit" data-id="${t.id}">✎</button>
+        <button class="ghost-btn small danger" data-act="del" data-id="${t.id}">🗑</button>
+      </div>`
+    : '';
+  const flags = [
+    t.repeat ? '<span class="cat-count">🔁 repeats</span>' : '',
+    t.rate ? `<span class="cat-count">${RATE_EMOJIS[t.rate]}</span>` : ''
+  ].join(' ');
+  return `<div class="txn-item">
+    <div class="txn-ico">${CAT_EMOJI[t.category] || '📦'}</div>
+    <div class="txn-main">
+      <div class="txn-name">${esc(t.name)}</div>
+      <div class="txn-sub">${fmtDate(t.date)} · ${esc(t.category)}${t.budgetImpact === 'capital' ? ' · 🏦 capital' : ''} ${flags}</div>
+    </div>
+    <div class="txn-amt ${t.budgetImpact}">${fmt(t.amount)}</div>
+    ${actions}
+  </div>`;
+}
+
+/* ---------- ANALYTICS ---------- */
+
+function renderAnalytics() {
+  const key = dashMonth;
+  const monthTxns = expensesInMonth(key);
+  $('#an-month').textContent = monthLabel(key);
+
+  // Category grid
+  const groups = groupByCategory(monthTxns);
+  const max = groups.length ? groups[0].total : 0;
+  $('#category-grid').innerHTML = groups.length
+    ? groups.map((g) => {
+      const pct = max ? Math.round((g.total / max) * 100) : 0;
+      return `<button class="cat-card" data-category="${esc(g.category)}">
+        <div class="cat-emoji">${CAT_EMOJI[g.category] || '📦'}</div>
+        <div class="cat-name">${esc(g.category)}</div>
+        <div class="cat-total">${fmt(g.total)}</div>
+        <div class="cat-count">${g.count} txn${g.count === 1 ? '' : 's'} · ${pct}% of top</div>
+      </button>`;
+    }).join('')
+    : '<p class="txn-empty" style="grid-column:1/-1">No spending yet this month.</p>';
+
+  // Pie chart
+  const pieEl = $('#pie-chart');
+  const pieEmpty = $('#pie-empty');
+  if (pieChart) { pieChart.destroy(); pieChart = null; }
+  if (groups.length === 0) {
+    pieEl.style.display = 'none';
+    pieEmpty.style.display = 'block';
+  } else {
+    pieEl.style.display = 'block';
+    pieEmpty.style.display = 'none';
+    pieChart = new Chart(pieEl, {
+      type: 'doughnut',
+      data: {
+        labels: groups.map((g) => g.category),
+        datasets: [{
+          data: groups.map((g) => g.total),
+          backgroundColor: groups.map((g) => cat(g.category).color),
+          borderColor: 'rgba(15,11,36,0.9)',
+          borderWidth: 3,
+          hoverOffset: 8
+        }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false, cutout: '64%',
+        plugins: {
+          legend: { position: 'bottom', labels: { color: 'rgba(242,240,255,0.8)', font: { family: 'Plus Jakarta Sans', size: 11 }, boxWidth: 10, padding: 10 } }
+        }
+      }
+    });
+  }
+
+  // Bar chart
+  const days = daysInMonth(key);
+  const daily = Array(days).fill(0);
+  monthTxns.forEach((t) => {
+    const d = Number(t.date.slice(8, 10));
+    if (d >= 1 && d <= days) daily[d - 1] += t.amount;
+  });
+  if (barChart) { barChart.destroy(); barChart = null; }
+  barChart = new Chart($('#bar-chart'), {
+    type: 'bar',
+    data: {
+      labels: daily.map((_, i) => i + 1),
+      datasets: [{
+        data: daily,
+        backgroundColor: daily.map((v) => (v > 0 ? 'rgba(139,123,255,0.75)' : 'rgba(255,255,255,0.05)')),
+        borderRadius: 4,
+        borderSkipped: false
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false }, tooltip: { callbacks: { label: (c) => fmt(c.parsed.y) } } },
+      scales: {
+        x: { grid: { display: false }, ticks: { color: 'rgba(242,240,255,0.4)', maxTicksLimit: 10, font: { size: 10 } } },
+        y: { grid: { color: 'rgba(255,255,255,0.06)' }, ticks: { color: 'rgba(242,240,255,0.5)', font: { size: 10 }, callback: (v) => 'RM' + v } }
+      }
+    }
+  });
+
+  // Cashflow cards
+  const income = incomeForMonth(key);
+  const totalSpent = sum(monthTxns);
+  const cashflow = calculateMonthlyCashflow(monthTxns, income);
+  const dailySpent = sum(monthTxns.filter((t) => t.budgetImpact === 'daily'));
+  const capitalSpent = totalSpent - dailySpent;
+  $('#cashflow-grid').innerHTML = [
+    { label: 'Income', val: income > 0 ? fmt(income) : '—', cls: '' },
+    { label: 'Daily spent', val: fmt(dailySpent), cls: '' },
+    { label: 'Capital spent', val: fmt(capitalSpent), cls: 'good' },
+    { label: 'Net cashflow', val: income > 0 ? fmt(cashflow) : '—', cls: income > 0 ? (cashflow >= 0 ? 'good' : 'bad') : '' }
+  ].map((c) => `<div class="cashflow-card"><span>${c.label}</span><b class="${c.cls}">${c.val}</b></div>`).join('');
+}
+
+/* ---------- BUDGET ---------- */
+
+function renderBudget() {
+  const key = dashMonth;
+  const budget = state.budgets[key] || 0;
+  const income = incomeForMonth(key);
+  const spent = sum(expensesInMonth(key));
+  const net = income - spent;
+  const dailySpent = sum(expensesInMonth(key).filter((t) => t.budgetImpact === 'daily'));
+
+  $('#bd-month').textContent = monthLabel(key);
+  $('#budget-income').textContent = income > 0 ? fmt(income) : 'RM 0.00';
+  $('#budget-fixed').textContent = budget > 0 ? fmt(budget) : 'Not set';
+  $('#budget-sub').textContent = budget > 0
+    ? Math.round((dailySpent / budget) * 100) + '% of budget used · capital excluded'
+    : 'Set a fixed budget to unlock pace, streak and 50/30/20.';
+  $('#income-line').textContent = income > 0
+    ? 'Income ' + fmt(income) + ' · ' + (net >= 0 ? 'saved ' + fmt(net) : 'overspent ' + fmt(-net)) + ' (cashflow)'
+    : 'Add income to see net savings.';
+  $('#income-line').style.color = income > 0 ? (net >= 0 ? 'var(--cyan)' : 'var(--danger)') : '';
+
+  // Pots
+  const grid = $('#pot-grid');
+  grid.innerHTML = state.pots.length
+    ? state.pots.map((p) => {
+      const pct = p.target > 0 ? Math.min(100, (p.saved / p.target) * 100) : 0;
+      const emoji = POT_EMOJIS[hashStr(p.name) % POT_EMOJIS.length];
+      const done = p.saved >= p.target && p.target > 0;
+      return `<div class="pot-card">
+        <div class="pot-head"><span class="pot-emoji">${emoji}</span><span class="pot-status">${done ? '<span class="done">✔ Goal reached!</span>' : Math.floor(pct) + '%'}</span></div>
+        <div class="pot-name">${esc(p.name)}</div>
+        <div class="pot-amounts"><b>${fmt(p.saved)}</b> / ${fmt(p.target)}</div>
+        <div class="pot-progress"><i style="width:${pct}%"></i></div>
+        <div class="pot-actions">
+          <button class="ghost-btn small" data-act="fund" data-id="${p.id}">💰 Add</button>
+          <button class="ghost-btn small" data-act="edit" data-id="${p.id}">✎</button>
+          <button class="ghost-btn small danger" data-act="del" data-id="${p.id}">🗑</button>
+        </div>
+      </div>`;
+    }).join('')
+    : '<p class="txn-empty">No saving pots yet. Create one and start chasing your goals!</p>';
+
+  // Money Cat
+  const info = petXpInfo();
+  const mood = petMood(key);
+  $('#cat-svg').innerHTML = catSVG(info.lv, mood);
+  $('#cat-tag').textContent = info.tag;
+  $('#cat-lv').textContent = 'LV ' + (info.lv + 1) + '/' + PET_LEVELS.length;
+  $('#cat-line').textContent = info.line;
+  $('#cat-xp-fill').style.width = info.pct + '%';
+  $('#cat-meta').textContent = petTip(mood);
+
+  // Achievements
+  const have = new Set(state.awards);
+  $('#ach-count').textContent = state.awards.length + ' / ' + ACHIEVEMENTS.length;
+  $('#ach-shelf').innerHTML = ACHIEVEMENTS.map((a) => {
+    const got = have.has(a.id);
+    return `<div class="ach ${got ? 'got' : 'locked'}">
+      <span class="ach-ico">${got ? a.icon : '🔒'}</span>
+      <span class="ach-txt"><b>${esc(a.title)}</b><small>${esc(a.desc)}</small></span>
+    </div>`;
+  }).join('');
+}
 
 function checkAchievements() {
   const unlocked = new Set(state.awards);
@@ -432,571 +449,67 @@ function checkAchievements() {
   }
 }
 
-function renderPetWidget() {
-  const key = dashMonth;
-  const info = petXpInfo();
-  const mood = petMood(key);
-  const s = state.budgets[key] || 0;
-  const spent = sum(expensesInMonth(key));
-  const inc = incomeForMonth(key);
-  const net = inc - spent > 0;
-  const meta = s > 0 ? `${Math.round((spent / s) * 100)}% of budget used` : inc > 0 ? 'No budget set yet' : 'Set a budget to wake Duit up';
+/* ============================== TABS ============================== */
 
-  $('#pet-tag').textContent = info.tag;
-  $('#pet-line').textContent = info.line;
-  $('#pet-meta').textContent = meta + (inc > 0 ? ` · net ${net ? '+' : ''}${fmt(inc - spent)}` : '');
-  $('#pet-lv').textContent = 'LV ' + (info.lv + 1) + '/' + PET_LEVELS.length;
-  $('#pet-xp-fill').style.width = info.pct + '%';
-  $('#pet-svg').innerHTML = catSVG(info.lv, mood);
+function switchTab(name) {
+  view = name;
+  $$('.nav-item').forEach((b) => {
+    const active = b.dataset.tab === name;
+    b.classList.toggle('active', active);
+    b.setAttribute('aria-selected', active ? 'true' : 'false');
+  });
+  $$('.tab-view').forEach((v) => {
+    const active = v.id === 'tab-' + name;
+    v.classList.toggle('active', active);
+    v.hidden = !active;
+  });
+  sfx.click();
 }
 
-/* ============================== BOOTSTRAP ============================== */
-
-function boot() {
-  $('#splash').style.display = 'none';
-  $('#app').style.display = 'block';
+function navMonth(delta) {
+  dashMonth = shiftMonth(dashMonth, delta);
+  const moved = rollRecurring(dashMonth);
+  if (moved) { saveData(); toast(moved + ' recurring item(s) rolled into ' + monthLabel(dashMonth), '🔁'); }
   renderAll();
-  sfx.open();
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('sw.js').catch(() => {});
-  }
+  sfx.click();
 }
 
-/* ============================== TOASTS ============================== */
+/* ============================== BOTTOM SHEET ============================== */
 
-function toast(msg, emoji) {
-  const wrap = $('#toast-wrap');
-  const el = document.createElement('div');
-  el.className = 'toast';
-  el.innerHTML = `<span>${emoji || '✨'}</span><span>${msg}</span>`;
-  wrap.appendChild(el);
-  setTimeout(() => {
-    el.classList.add('hide');
-    setTimeout(() => el.remove(), 350);
-  }, 2600);
-}
+function openCategorySheet(category) {
+  const group = groupByCategory(expensesInMonth(dashMonth)).find((g) => g.category === category);
+  if (!group) return;
+  const avg = group.total / group.count;
 
-function toastUndo() {
-  const wrap = $('#toast-wrap');
-  const el = document.createElement('div');
-  el.className = 'toast';
-  el.style.cursor = 'pointer';
-  el.innerHTML = '<span>🗑️</span><span>Deleted</span><button class="chip-btn" id="undo-btn">Undo</button>';
-  wrap.appendChild(el);
-  $('#undo-btn').addEventListener('click', () => {
-    if (lastDeletedType === 'expense') state.expenses = [lastDeleted, ...state.expenses];
-    else if (lastDeletedType === 'pot') state.pots = [lastDeleted, ...state.pots];
-    else if (lastDeletedType === 'income') state.incomes = [...state.incomes, lastDeleted];
-    lastDeleted = null;
-    lastDeletedType = null;
-    el.remove();
-    saveData();
-    renderAll();
-    sfx.success();
-    toast('Restored!', '↩️');
+  $('#sheet-title').textContent = category + ' ' + (CAT_EMOJI[category] || '');
+  $('#sheet-total').textContent = fmt(group.total);
+  $('#sheet-count').textContent = group.count;
+  $('#sheet-avg').textContent = fmt(avg);
+  $('#sheet-list').innerHTML = group.transactions.map(txnItem).join('');
+
+  $('#sheet-backdrop').hidden = false;
+  requestAnimationFrame(() => {
+    $('#sheet-backdrop').classList.add('show');
+    $('#category-sheet').classList.add('open');
   });
-  setTimeout(() => el.remove(), 5000);
+  document.body.classList.add('sheet-open');
+  $('#sheet-close').focus();
 }
 
-/* ============================== RENDER ============================== */
-
-function renderAll() {
-  updateSoundBtn();
-  renderBudget();
-  renderPeriod();
-  renderCharts();
-  renderCategories();
-  renderExpenses();
-  renderPots();
-  renderSummary();
-  renderPetWidget();
-  checkAchievements();
-}
-
-function renderBudget() {
-  const budget = state.budgets[dashMonth] || 0;
-  const income = incomeForMonth(dashMonth);
-  const spent = sum(expensesInMonth(dashMonth));
-  const left = budget - spent;
-  const net = income - spent;
-  const days = daysInMonth(dashMonth);
-  const dailyAllow = budget > 0 ? budget / days : 0;
-  const weeklyAllow = budget > 0 ? budget / (days / 7) : 0;
-
-  $('#month-label').textContent = monthLabel(dashMonth);
-  $('#budget-amount').textContent = budget > 0 ? fmt(budget) : 'Not set yet';
-  $('#stat-spent').textContent = fmt(spent);
-  $('#stat-left').textContent = budget > 0 ? fmt(left) : fmt(0);
-  $('#stat-left').className = 'hs-value ' + (budget > 0 && left < 0 ? 'bad' : 'good');
-  $('#stat-daily').textContent = budget > 0 ? fmt(dailyAllow) : '—';
-  $('#stat-weekly').textContent = budget > 0 ? fmt(weeklyAllow) : '—';
-  const netEl = $('#stat-net');
-  if (income > 0) {
-    netEl.textContent = fmt(net);
-    netEl.className = 'hs-value ' + (net >= 0 ? 'good' : 'bad');
-  } else {
-    netEl.textContent = '—';
-    netEl.className = 'hs-value';
-  }
-  const incLine = $('#income-line');
-  incLine.textContent = income > 0 ? 'Income ' + fmt(income) + ' · ' + (net >= 0 ? 'saved ' + fmt(net) : 'overspent ' + fmt(-net)) : 'Add income to see your net savings.';
-  incLine.style.color = income > 0 ? (net >= 0 ? 'var(--accent)' : 'var(--danger)') : '';
-  renderPace();
-  renderStreakChips();
-  renderSplit();
-
-  const circ = 2 * Math.PI * 52;
-  const pct = budget > 0 ? Math.min(200, (spent / budget) * 100) : (spent > 0 ? 100 : 0);
-  const ring = $('#budget-ring-fg');
-  ring.style.strokeDasharray = circ;
-  ring.style.strokeDashoffset = circ * (1 - Math.min(1, pct / 100));
-  $('#budget-pct').textContent = Math.round(Math.min(pct, 999)) + '%';
-  ring.style.stroke = pct > 100 ? 'var(--danger)' : pct > 75 ? 'var(--warn)' : 'var(--accent)';
-}
-
-function renderPace() {
-  const budget = state.budgets[dashMonth] || 0;
-  const days = daysInMonth(dashMonth);
-  const todayNum = new Date().getDate();
-  const isCur = dashMonth === monthKey(iso(today()));
-  const daysLeft = isCur ? days - todayNum + 1 : days;
-  const spent = sum(expensesInMonth(dashMonth));
-  const elapsed = isCur ? todayNum : days;
-  const avg = elapsed ? spent / elapsed : 0;
-  const allowPerDay = budget > 0 ? budget / days : 0;
-  const pace = Math.max(0, allowPerDay - avg);
-  const fill = budget > 0 ? Math.min(100, (avg / allowPerDay) * 100) : 0;
-  const bar = $('#pace-bar-fill');
-  const num = $('#pace-num');
-  const cap = $('#pace-cap');
-  bar.style.width = (budget > 0 ? fill : 0) + '%';
-  bar.style.background = !budget || fill < 70 ? 'var(--accent)' : fill <= 100 ? 'linear-gradient(90deg,#ffd166,#ffb347)' : 'linear-gradient(90deg,#ff8a5b,#ff5c5c)';
-  if (!budget) { num.textContent = '—'; cap.textContent = 'Set a budget to see your daily pace'; return; }
-  num.textContent = fmt(pace);
-  cap.textContent = `left per day if you keep up · ${Math.round(fill)}% of allowance used today`;
-}
-
-function renderSplit() {
-  const budget = state.budgets[dashMonth] || 0;
-  const income = incomeForMonth(dashMonth);
-  const spent = sum(expensesInMonth(dashMonth));
-  if (income <= 0 && budget <= 0) { $('#split-box').innerHTML = '<div class="empty-state" style="padding:16px 6px"><span class="big">🌱</span>Add income and a budget to see your 50/30/20 split.</div>'; return; }
-  const goal = income > 0 ? income : budget;
-  const needs = Math.round(goal * 0.5);
-  const wants = Math.round(goal * 0.3);
-  const saves = Math.round(goal * 0.2);
-  const monthExp = expensesInMonth(dashMonth);
-  const spentNeed = sum(monthExp.filter((e) => cat(e.category).type === 'need'));
-  const spentWant = sum(monthExp.filter((e) => cat(e.category).type === 'want'));
-  const spentSave = Math.max(0, income - spent);
-  const rows = [
-    { icon: '🏠', label: 'Needs', alloc: needs, spent: spentNeed, color: '#4cc9f0' },
-    { icon: '🎈', label: 'Wants', alloc: wants, spent: spentWant, color: '#ff6b9d' },
-    { icon: '🐱', label: 'Savings', alloc: saves, spent: spentSave, color: '#ffd166' }
-  ];
-  $('#split-box').innerHTML = rows.map((r) => {
-    const pct = r.alloc > 0 ? Math.min(100, (r.spent / r.alloc) * 100) : 0;
-    const over = r.spent > r.alloc;
-    const save = r.label === 'Savings';
-    const bad = over && !save;
-    const extra = bad ? ' <span class="split-over">· over!</span>' : save && over ? ' <span class="split-over good">· solid!</span>' : '';
-    const glow = bad ? 'box-shadow:0 0 10px ' + r.color : '';
-    return `<div class="split-row">
-      <div class="split-head">
-        <span>${r.icon} ${r.label}</span>
-        <span>${fmt(r.spent)} / <b>${fmt(r.alloc)}</b>${extra}</span>
-      </div>
-      <div class="split-bar"><i style="width:${pct}%;background:${r.color};${glow}"></i></div>
-    </div>`;
-  }).join('');
-}
-
-function renderPeriod() {
-  const budget = state.budgets[dashMonth] || 0;
-  const days = daysInMonth(dashMonth);
-  let spent, allow, label;
-  if (period === 'day') {
-    spent = sum(expensesInRange(iso(today()), iso(today())));
-    allow = budget > 0 ? budget / days : 0;
-    label = 'today';
-  } else if (period === 'week') {
-    const [a, b] = weekRange();
-    spent = sum(expensesInRange(a, b));
-    allow = budget > 0 ? budget / (days / 7) : 0;
-    label = 'this week';
-  } else {
-    spent = sum(expensesInMonth(dashMonth));
-    allow = budget;
-    label = 'this month';
-  }
-  const over = allow > 0 && spent > allow;
-  const el = $('#period-readout');
-  el.innerHTML = `Spent <b>${fmt(spent)}</b> ${label} · allowance <b>${fmt(allow)}</b>`;
-  if (over) el.innerHTML += ' <span style="color:var(--danger)">⚠️ over!</span>';
-  el.querySelectorAll('b').forEach((b) => (b.style.color = over ? 'var(--danger)' : 'var(--accent)'));
-}
-
-function renderCharts() {
-  const monthExp = expensesInMonth(dashMonth);
-
-  // Pie
-  const byCat = {};
-  monthExp.forEach((e) => { byCat[e.category] = (byCat[e.category] || 0) + e.amount; });
-  const entries = Object.entries(byCat).sort((a, b) => b[1] - a[1]);
-  const pieEl = $('#pie-chart');
-  const emptyEl = $('#pie-empty');
-
-  if (pieChart) { pieChart.destroy(); pieChart = null; }
-  if (entries.length === 0) {
-    pieEl.style.display = 'none';
-    emptyEl.style.display = 'block';
-  } else {
-    pieEl.style.display = 'block';
-    emptyEl.style.display = 'none';
-    const labels = entries.map(([k]) => k);
-    const data = entries.map(([, v]) => v);
-    const colors = entries.map(([k]) => cat(k).color);
-    pieChart = new Chart(pieEl, {
-      type: 'doughnut',
-      data: { labels, datasets: [{ data, backgroundColor: colors, borderColor: 'rgba(11,16,32,0.9)', borderWidth: 3, hoverOffset: 10 }] },
-      options: {
-        responsive: true, maintainAspectRatio: false,
-        cutout: '62%',
-        plugins: {
-          centerText: { value: fmt(sum(monthExp)), label: 'spent this month' },
-          legend: { position: 'right', labels: { color: 'rgba(244,247,255,0.85)', font: { family: 'Plus Jakarta Sans', size: 12 }, boxWidth: 10, padding: 14 } }
-        }
-      },
-      plugins: [centerText]
-    });
-  }
-
-  // Bar
-  const days = daysInMonth(dashMonth);
-  const daily = Array(days).fill(0);
-  monthExp.forEach((e) => { const d = Number(e.date.slice(8, 10)); if (d >= 1 && d <= days) daily[d - 1] += e.amount; });
-  if (barChart) { barChart.destroy(); barChart = null; }
-  barChart = new Chart($('#bar-chart'), {
-    type: 'bar',
-    data: {
-      labels: daily.map((_, i) => i + 1),
-      datasets: [{
-        label: 'Spent',
-        data: daily,
-        backgroundColor: daily.map((v) => (v > 0 ? 'rgba(52,224,161,0.75)' : 'rgba(255,255,255,0.06)')),
-        borderRadius: 4,
-        borderSkipped: false
-      }]
-    },
-    options: {
-      responsive: true, maintainAspectRatio: false,
-      plugins: { legend: { display: false }, tooltip: { callbacks: { label: (c) => fmt(c.parsed.y) } } },
-      scales: {
-        x: { grid: { display: false }, ticks: { color: 'rgba(244,247,255,0.5)', maxTicksLimit: 10, font: { size: 10 } } },
-        y: { grid: { color: 'rgba(255,255,255,0.06)' }, ticks: { color: 'rgba(244,247,255,0.6)', font: { size: 11 }, callback: (v) => 'RM' + v } }
-      }
-    }
-  });
-}
-
-function renderCategories() {
-  const monthExp = expensesInMonth(dashMonth);
-  const byCat = {};
-  monthExp.forEach((e) => { byCat[e.category] = (byCat[e.category] || 0) + e.amount; });
-  const entries = Object.entries(byCat).sort((a, b) => b[1] - a[1]);
-  const list = $('#category-list');
-  const max = entries.length ? entries[0][1] : 0;
-
-  if (entries.length === 0) {
-    list.innerHTML = '<div class="empty-state"><span class="big">🫧</span>Nothing here yet — add your first expense!</div>';
-    return;
-  }
-  list.innerHTML = entries.map(([name, amt], i) => {
-    const c = cat(name);
-    return `<div class="cat-row" style="animation-delay:${i * 40}ms">
-      <span class="cat-dot" style="background:${c.color};color:${c.color}"></span>
-      <span class="cat-name">${c.emoji} ${name}</span>
-      <span class="cat-bar"><i style="width:${max ? (amt / max) * 100 : 0}%;background:${c.color};box-shadow:0 0 8px ${c.color}"></i></span>
-      <span class="cat-amt">${fmt(amt)}</span>
-    </div>`;
-  }).join('');
-}
-
-function renderExpenses() {
-  const monthExp = expensesInMonth(dashMonth).sort((a, b) => (b.date < a.date ? -1 : b.date > a.date ? 1 : 0));
-  const list = $('#expense-list');
-
-  if (monthExp.length === 0) {
-    list.innerHTML = '<div class="empty-state"><span class="big">🪙</span>No transactions in ' + monthLabel(dashMonth) + '.</div>';
-    return;
-  }
-  list.innerHTML = monthExp.map((e, i) => {
-    const c = cat(e.category);
-    const flags = [
-      e.repeat ? '<span class="exp-flag" title="Repeats monthly">🔁</span>' : '',
-      e.rate ? `<span class="exp-flag" title="${RATE_LABELS[e.rate]}">${RATE_EMOJIS[e.rate]}</span>` : ''
-    ].join('');
-    return `<div class="expense-item" style="animation-delay:${Math.min(i, 20) * 30}ms">
-      <div class="exp-icon" style="background:${c.color}22">${c.emoji}</div>
-      <div class="exp-main">
-        <div class="exp-name">${esc(e.name)} ${flags}<span class="exp-tag" style="color:${c.color};background:${c.color}1a">${esc(e.category)}</span></div>
-        <div class="exp-meta">${fmtDate(e.date)} · ${weekday(e.date)}${e.notes ? ' · <span class="exp-notes">' + esc(e.notes) + '</span>' : ''}</div>
-      </div>
-      <div class="exp-amount">${fmt(e.amount)}</div>
-      <div class="exp-actions">
-        <button class="mini-btn" data-act="edit" data-id="${e.id}">✎</button>
-        <button class="mini-btn danger" data-act="del" data-id="${e.id}">🗑</button>
-      </div>
-    </div>`;
-  }).join('');
-
-  list.querySelectorAll('[data-act]').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      const exp = state.expenses.find((x) => x.id === btn.dataset.id);
-      if (!exp) return;
-      if (btn.dataset.act === 'edit') openExpenseModal(exp);
-      else deleteExpense(exp);
-    });
-  });
-}
-
-function renderPots() {
-  const grid = $('#pot-grid');
-  if (state.pots.length === 0) {
-    grid.innerHTML = '<div class="card glass" style="grid-column:1/-1"><div class="empty-state"><span class="big">🏺</span>No saving pots yet. Create one and start chasing your goals!</div></div>';
-    return;
-  }
-  grid.innerHTML = state.pots.map((p, i) => {
-    const pct = p.target > 0 ? Math.min(100, (p.saved / p.target) * 100) : 0;
-    const emoji = POT_EMOJIS[hashStr(p.name) % POT_EMOJIS.length];
-    const done = p.saved >= p.target && p.target > 0;
-    return `<div class="pot-card glass" style="--potc:${p.color};animation-delay:${i * 50}ms">
-      <div class="pot-head"><span class="pot-emoji">${emoji}</span><span class="pot-status">${done ? '<span class="done">✔ Goal reached!</span>' : Math.floor(pct) + '%'}</span></div>
-      <div class="pot-name">${esc(p.name)}</div>
-      <div class="pot-amounts"><b>${fmt(p.saved)}</b> / ${fmt(p.target)}</div>
-      <div class="pot-progress"><i style="width:${pct}%"></i></div>
-      <div class="pot-actions">
-        <button class="mini-btn" data-act="fund" data-id="${p.id}">💰 Add</button>
-        <button class="mini-btn" data-act="edit" data-id="${p.id}">✎ Edit</button>
-        <button class="mini-btn danger" data-act="del" data-id="${p.id}">🗑</button>
-      </div>
-    </div>`;
-  }).join('');
-
-  grid.querySelectorAll('[data-act]').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      const pot = state.pots.find((x) => x.id === btn.dataset.id);
-      if (!pot) return;
-      if (btn.dataset.act === 'fund') openFundModal(pot);
-      else if (btn.dataset.act === 'edit') openPotModal(pot);
-      else deletePot(pot);
-    });
-  });
-}
-
-function renderSummary() {
-  $('#sum-month-label').textContent = monthLabel(summaryMonth);
-  const monthExp = expensesInMonth(summaryMonth).sort((a, b) => (b.date < a.date ? -1 : b.date > a.date ? 1 : 0));
-  const spent = sum(monthExp);
-  const budget = state.budgets[summaryMonth] || 0;
-  const income = incomeForMonth(summaryMonth);
-  const net = income - spent;
-  const rated = monthExp.filter((e) => e.rate >= 1 && e.rate <= 5);
-  const score = rated.length ? Math.round((rated.reduce((a, e) => a + e.rate, 0) / rated.length) * 10) / 10 : 0;
-  const byCat = {};
-  monthExp.forEach((e) => { byCat[e.category] = (byCat[e.category] || 0) + e.amount; });
-  const top = Object.entries(byCat).sort((a, b) => b[1] - a[1])[0];
-  const todayNum = new Date().getDate();
-  const isCur = summaryMonth === monthKey(iso(today()));
-  const daysElapsed = isCur ? Math.min(todayNum, daysInMonth(summaryMonth)) : daysInMonth(summaryMonth);
-  const dailyAvg = daysElapsed ? spent / daysElapsed : 0;
-
-  // Compare vs last month
-  const prevKey = shiftMonth(summaryMonth, -1);
-  const prevSpent = sum(expensesInMonth(prevKey));
-  let compare;
-  if (prevSpent <= 0) {
-    compare = { text: '—', cls: '' };
-  } else if (spent <= 0) {
-    compare = { text: '▼ 100%', cls: 'good' };
-  } else {
-    const chg = ((spent - prevSpent) / prevSpent) * 100;
-    compare = { text: (chg >= 0 ? '▲ ' : '▼ ') + Math.round(Math.abs(chg)) + '%', cls: chg > 0 ? 'bad' : 'good' };
-  }
-
-  // Forecast month-end
-  const projected = Math.round(dailyAvg * daysInMonth(summaryMonth));
-  let projSub = 'on current pace';
-  if (budget > 0) projSub += ' · ' + (projected > budget ? '⏫ ' : 'ok ') + fmt(Math.abs(projected - budget)) + (projected > budget ? ' over' : ' under');
-
-  const stats = [
-    { label: 'Total spent', value: fmt(spent), sub: monthExp.length + ' transactions' },
-    { label: 'Income', value: income > 0 ? fmt(income) : '—', sub: income > 0 ? incomesInMonth(summaryMonth).length + ' source(s)' : 'not set' },
-    { label: 'Net savings', value: income > 0 ? fmt(net) : '—', cls: income > 0 ? (net >= 0 ? 'good' : 'bad') : '', sub: income > 0 ? 'income − spent' : 'set income to track' },
-    { label: 'Budget', value: budget > 0 ? fmt(budget) : '—', sub: budget > 0 ? Math.round((spent / budget) * 100) + '% used' : 'not set' },
-    { label: 'Remaining', value: budget > 0 ? fmt(budget - spent) : '—', sub: budget - spent < 0 ? 'over budget' : 'of budget' },
-    { label: 'Daily average', value: fmt(dailyAvg), sub: 'per day so far' },
-    { label: 'vs last month', value: compare.text, cls: compare.cls, sub: monthLabel(prevKey) },
-    { label: 'Projected month-end', value: fmt(projected), sub: projSub },
-    { label: 'Value score', value: rated.length ? score.toFixed(1) + ' / 5' : '—', sub: rated.length ? rateEmoji(score) + ' from ' + rated.length + ' rating(s)' : 'rate expenses to unlock' },
-    { label: 'Top category', value: top ? top[0] : '—', sub: top ? fmt(top[1]) : '' }
-  ];
-  $('#sum-stats').innerHTML = stats.map((s, i) => `
-    <div class="stat-card glass" style="animation-delay:${i * 40}ms">
-      <div class="sc-label">${s.label}</div>
-      <div class="sc-value ${s.cls || ''}">${s.value}</div>
-      <div class="sc-sub">${s.sub}</div>
-    </div>`).join('');
-
-  renderYearChart();
-
-  const list = $('#sum-list');
-  if (monthExp.length === 0) {
-    list.innerHTML = '<div class="empty-state"><span class="big">📭</span>No transactions in ' + monthLabel(summaryMonth) + '.</div>';
-  } else {
-    list.innerHTML = monthExp.map((e, i) => {
-      const c = cat(e.category);
-      return `<div class="expense-item" style="animation-delay:${Math.min(i, 20) * 30}ms">
-        <div class="exp-icon" style="background:${c.color}22">${c.emoji}</div>
-        <div class="exp-main">
-          <div class="exp-name">${esc(e.name)} <span class="exp-tag" style="color:${c.color};background:${c.color}1a">${esc(e.category)}</span></div>
-          <div class="exp-meta">${fmtDate(e.date)} · ${weekday(e.date)}${e.notes ? ' · <span class="exp-notes">' + esc(e.notes) + '</span>' : ''}</div>
-        </div>
-        <div class="exp-amount">${fmt(e.amount)}</div>
-      </div>`;
-    }).join('');
-  }
-}
-
-function renderYearChart() {
-  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-  const labels = [];
-  const spentArr = [];
-  const budgArr = [];
-  let anySpent = false;
-  let anyBudg = false;
-  for (let m = 0; m < 12; m++) {
-    const key = year + '-' + pad(m + 1);
-    labels.push(months[m]);
-    const s = sum(expensesInMonth(key));
-    const b = state.budgets[key] || 0;
-    spentArr.push(s);
-    if (s > 0) anySpent = true;
-    if (b > 0) { budgArr.push(b); anyBudg = true; } else { budgArr.push(null); }
-  }
-  $('#year-label').textContent = year;
-  const emptyEl = $('#year-empty');
-  const canvas = $('#year-chart');
-  if (!anySpent) {
-    if (yearChart) { yearChart.destroy(); yearChart = null; }
-    canvas.style.display = 'none';
-    emptyEl.style.display = 'block';
-    return;
-  }
-  canvas.style.display = 'block';
-  emptyEl.style.display = 'none';
-  if (yearChart) { yearChart.destroy(); yearChart = null; }
-  const datasets = [{
-    type: 'bar',
-    label: 'Spent',
-    data: spentArr,
-    backgroundColor: spentArr.map((v, i) => (v > 0 ? 'rgba(52,224,161,0.8)' : 'rgba(255,255,255,0.05)')),
-    borderRadius: 4,
-    borderSkipped: false,
-    yAxisID: 'y'
-  }];
-  if (anyBudg) {
-    datasets.push({
-      type: 'line',
-      label: 'Budget',
-      data: budgArr,
-      borderColor: 'rgba(255,183,77,0.9)',
-      backgroundColor: 'rgba(255,183,77,0.15)',
-      borderWidth: 2,
-      pointRadius: 3,
-      tension: 0.35,
-      fill: true,
-      spanGaps: true,
-      yAxisID: 'y'
-    });
-  }
-  yearChart = new Chart(canvas, {
-    data: { labels, datasets },
-    options: {
-      responsive: true, maintainAspectRatio: false,
-      plugins: {
-        legend: { position: 'top', labels: { color: 'rgba(244,247,255,0.85)', font: { family: 'Plus Jakarta Sans', size: 12 }, boxWidth: 10, usePointStyle: true } },
-        tooltip: { callbacks: { label: (c) => c.dataset.label + ': ' + fmt(c.parsed.y) } }
-      },
-      scales: {
-        x: { grid: { display: false }, ticks: { color: 'rgba(244,247,255,0.5)', font: { size: 10 } } },
-        y: { grid: { color: 'rgba(255,255,255,0.06)' }, ticks: { color: 'rgba(244,247,255,0.6)', font: { size: 11 }, callback: (v) => 'RM' + v } }
-      }
-    }
-  });
-}
-
-/* ============================== HELPERS ============================== */
-
-function esc(s) {
-  return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-}
-
-function hashStr(s) {
-  let h = 0;
-  for (let i = 0; i < s.length; i++) { h = (h << 5) - h + s.charCodeAt(i); h |= 0; }
-  return Math.abs(h);
-}
-
-function randPotColor() {
-  return CATEGORIES[Math.floor(Math.random() * CATEGORIES.length)].color;
-}
-
-const RATE_EMOJIS = ['', '😭', '😕', '😐', '🙂', '🥰'];
-const RATE_LABELS = ['', 'regret', 'meh', 'eh, ok', 'worth it', 'loved it'];
-
-function rateEmoji(score) {
-  return RATE_EMOJIS[Math.round(score)] || '😐';
-}
-
-// Consecutive days (ending today, inside the current month) where the
-// cumulative spending stayed at or under the budget pace.
-function onPaceStreak(key) {
-  const budget = state.budgets[key] || 0;
-  if (budget <= 0) return 0;
-  const days = daysInMonth(key);
-  const todayNum = new Date().getDate();
-  const monthStart = key + '-01';
-  let streak = 0;
-  for (let d = todayNum; d >= 1; d--) {
-    const dayStr = key + '-' + pad(d);
-    const cum = sum(expensesInRange(monthStart, dayStr));
-    const pace = budget * (d / days);
-    if (cum <= pace) streak++;
-    else break;
-  }
-  return streak;
-}
-
-function renderStreakChips() {
-  const key = dashMonth;
-  const isCur = key === monthKey(iso(today()));
-  const streak = isCur ? onPaceStreak(key) : 0;
-  const chips = $('#pace-chips');
-  if (!isCur) { chips.style.display = 'none'; return; }
-  chips.style.display = 'flex';
-  $('#streak-num').textContent = streak;
-  $('#streak-chip').classList.toggle('hot', streak >= 5);
-  $('#streak-chip').classList.toggle('ice', streak === 0);
+function closeCategorySheet() {
+  $('#sheet-backdrop').classList.remove('show');
+  $('#category-sheet').classList.remove('open');
+  document.body.classList.remove('sheet-open');
+  setTimeout(() => { $('#sheet-backdrop').hidden = true; }, 350);
 }
 
 /* ============================== MODALS ============================== */
 
 function openModal(id) {
-  const modal = $(id);
-  modal.classList.add('open');
+  $(id).classList.add('open');
   sfx.open();
-  const focusable = modal.querySelector('input, select, textarea, button');
+  document.body.classList.add('modal-open');
+  const focusable = $(id).querySelector('input, select, textarea, button');
   setTimeout(() => { if (focusable) focusable.focus(); }, 60);
 }
 
@@ -1004,34 +517,10 @@ function closeModal(id) {
   const modal = $(id);
   if (!modal) return;
   modal.classList.remove('open');
+  if (!document.querySelector('.modal.open')) document.body.classList.remove('modal-open');
   const focusable = modal.querySelector('input, select, textarea, button');
   if (focusable) focusable.blur();
 }
-
-document.addEventListener('keydown', (e) => {
-  if (e.key !== 'Escape') return;
-  const open = document.querySelector('.modal.open');
-  if (open) closeModal('#' + open.id);
-});
-
-document.addEventListener('keydown', (e) => {
-  if (e.key !== 'Tab') return;
-  const open = document.querySelector('.modal.open');
-  if (!open) return;
-  const focusables = [...open.querySelectorAll('input, select, textarea, button, [tabindex]:not([tabindex="-1"])')].filter((el) => !el.disabled);
-  if (focusables.length === 0) return;
-  const first = focusables[0];
-  const last = focusables[focusables.length - 1];
-  if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
-  else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
-});
-
-document.querySelectorAll('[data-close]').forEach((b) => {
-  b.addEventListener('click', () => closeModal('#' + b.dataset.close));
-});
-document.querySelectorAll('.modal').forEach((m) => {
-  m.addEventListener('click', (e) => { if (e.target === m) closeModal('#' + m.id); });
-});
 
 function openExpenseModal(exp) {
   $('#expense-modal-title').textContent = exp ? 'Edit Expense' : 'New Expense';
@@ -1049,7 +538,7 @@ function openExpenseModal(exp) {
 }
 
 function renderRateButtons(sel) {
-  document.querySelectorAll('.rate-btn').forEach((b) => {
+  $$('.rate-btn').forEach((b) => {
     b.classList.toggle('active', Number(b.dataset.rate) === sel);
   });
 }
@@ -1066,6 +555,32 @@ function openBudgetModal() {
   openModal('#budget-modal');
 }
 
+function openIncomeModal() {
+  $('#income-modal-month').textContent = monthLabel(dashMonth);
+  $('#income-name').value = '';
+  $('#income-amount').value = '';
+  $('#income-date').value = dashMonth === monthKey(today()) ? iso(today()) : dashMonth + '-01';
+  $('#income-repeat').checked = false;
+  renderIncomeList();
+  openModal('#income-modal');
+}
+
+function renderIncomeList() {
+  const list = incomesInMonth(dashMonth);
+  $('#income-list').innerHTML = list.length
+    ? list.map((i) => `
+      <div class="income-item">
+        <span class="income-ico">${esc(i.emoji || '💰')}</span>
+        <span class="income-main">
+          <b>${esc(i.name)}</b>
+          <small>${fmtDate(i.date)}${i.repeat ? ' · 🔁 repeats monthly' : ''}</small>
+        </span>
+        <span class="income-amt">+${fmt(i.amount)}</span>
+        <button class="ghost-btn small danger" data-act="del-income" data-id="${i.id}" aria-label="Delete income">🗑</button>
+      </div>`).join('')
+    : '<p class="txn-empty" style="padding:14px 0">No income added this month yet.</p>';
+}
+
 function openPotModal(pot) {
   $('#pot-modal-title').textContent = pot ? 'Edit Saving Pot' : 'New Saving Pot';
   $('#pot-id').value = pot ? pot.id : '';
@@ -1078,7 +593,7 @@ function openPotModal(pot) {
 
 function openFundModal(pot) {
   fundPotId = pot.id;
-  $('#fund-title').textContent = 'Add money — ' + pot.name;
+  $('#fund-title').textContent = 'Add money · ' + pot.name;
   $('#fund-sub').textContent = `${fmt(pot.saved)} saved of ${fmt(pot.target)} (${Math.floor((pot.saved / pot.target) * 100)}%)`;
   $('#fund-amount').value = '';
   openModal('#fund-modal');
@@ -1089,23 +604,23 @@ function openFundModal(pot) {
 function saveExpense(ev) {
   ev.preventDefault();
   const id = $('#expense-id').value;
+  const prev = id ? state.expenses.find((e) => e.id === id) : null;
   const exp = {
     id: id || uid(),
-    createdAt: id ? '' : new Date().toISOString(),
+    createdAt: prev ? prev.createdAt : new Date().toISOString(),
     name: $('#expense-name').value.trim(),
     amount: parseFloat($('#expense-amount').value),
     category: $('#expense-category').value,
     date: $('#expense-date').value,
     notes: $('#expense-notes').value.trim(),
     repeat: $('#expense-repeat').checked,
-    rate: Number($('#expense-rate-val').value) || 0
+    rate: Number($('#expense-rate-val').value) || 0,
+    budgetImpact: categorizeExpense($('#expense-category').value)
   };
   if (!exp.name) { sfx.error(); toast('Enter a name', '⚠️'); return; }
   if (!(exp.amount > 0)) { sfx.error(); toast('Amount must be more than 0', '⚠️'); return; }
   const isNew = !id;
   if (id) {
-    const prev = state.expenses.find((e) => e.id === id);
-    exp.createdAt = prev ? prev.createdAt : new Date().toISOString();
     state.expenses = state.expenses.map((e) => (e.id === id ? exp : e));
     sfx.success();
     toast('Expense updated!', '✏️');
@@ -1141,34 +656,8 @@ function saveBudget(ev) {
   renderAll();
   sfx.success();
   toast(`Budget set to ${fmt(amount)}`, '🎯');
+  addPetXp(10);
   closeModal('#budget-modal');
-}
-
-function openIncomeModal() {
-  $('#income-modal-month').textContent = monthLabel(dashMonth);
-  $('#income-name').value = '';
-  $('#income-amount').value = '';
-  $('#income-date').value = dashMonth === monthKey(iso(today())) ? iso(today()) : dashMonth + '-01';
-  $('#income-repeat').checked = false;
-  $('#income-list').innerHTML = renderIncomeList();
-  openModal('#income-modal');
-}
-
-function renderIncomeList() {
-  const list = incomesInMonth(dashMonth);
-  if (list.length === 0) {
-    return '<div class="empty-state" style="padding:18px 6px"><span class="big">💵</span>No income added this month yet.</div>';
-  }
-  return list.map((i) => `
-    <div class="income-item">
-      <span class="income-ico">${esc(i.emoji || '💰')}</span>
-      <span class="income-main">
-        <b>${esc(i.name)}</b>
-        <small>${fmtDate(i.date)}${i.repeat ? ' · 🔁 repeats monthly' : ''}</small>
-      </span>
-      <span class="income-amt">+${fmt(i.amount)}</span>
-      <button class="mini-btn danger" data-act="del-income" data-id="${i.id}" aria-label="Delete income">🗑</button>
-    </div>`).join('');
 }
 
 function addIncome(ev) {
@@ -1179,7 +668,6 @@ function addIncome(ev) {
   const repeat = $('#income-repeat').checked;
   if (!name) { sfx.error(); toast('Enter a source name', '⚠️'); return; }
   if (!(amount > 0)) { sfx.error(); toast('Amount must be more than 0', '⚠️'); return; }
-  const emojiVisible = repeat ? '🔁' : '💰';
   state.incomes.push({
     id: uid(),
     createdAt: new Date().toISOString(),
@@ -1192,7 +680,7 @@ function addIncome(ev) {
   state.incomes = state.incomes.sort((a, b) => (a.date < b.date ? -1 : 1));
   saveData();
   sfx.coin();
-  toast(name + ' added to income', emojiVisible);
+  toast(name + ' added to income', repeat ? '🔁' : '💰');
   if (repeat) addPetXp(8);
   addPetXp(5);
   closeModal('#income-modal');
@@ -1206,41 +694,8 @@ function deleteIncome(id) {
   lastDeletedType = 'income';
   saveData();
   sfx.coin();
+  toastUndo();
   renderAll();
-}
-
-function backupData() {
-  const payload = {
-    app: 'spendsync',
-    version: 3,
-    exportedAt: new Date().toISOString(),
-    data: state
-  };
-  const filename = 'spendsync-backup-' + new Date().toISOString().slice(0, 10) + '.json';
-  download(filename, JSON.stringify(payload, null, 2), 'application/json');
-  sfx.success();
-  toast('Backup downloaded!', '💾');
-}
-
-async function restoreData(ev) {
-  const file = ev.target.files && ev.target.files[0];
-  ev.target.value = '';
-  if (!file) return;
-  try {
-    const text = await file.text();
-    const parsed = JSON.parse(text);
-    const d = parsed && parsed.data ? parsed.data : parsed;
-    if (!d || (!Array.isArray(d.expenses) && !Array.isArray(d.incomes))) throw new Error('bad backup');
-    state = normalizeState(d);
-    saveData();
-    renderAll();
-    sfx.success();
-    burst(1.2);
-    toast('Backup restored!', '🎉');
-  } catch (err) {
-    sfx.error();
-    toast('Invalid backup file', '⚠️');
-  }
 }
 
 function savePot(ev) {
@@ -1249,7 +704,7 @@ function savePot(ev) {
   const prev = id ? state.pots.find((p) => p.id === id) : null;
   const pot = {
     id: id || uid(),
-    createdAt: new Date().toISOString(),
+    createdAt: prev ? prev.createdAt : new Date().toISOString(),
     name: $('#pot-name').value.trim(),
     target: parseFloat($('#pot-target').value),
     saved: parseFloat($('#pot-saved').value) || 0,
@@ -1306,14 +761,10 @@ function celebrateGoal(pot) {
   setTimeout(() => burst(1.2), 350);
   sfx.success();
   toast(`🎉 Goal reached! ${fmt(pot.saved)} / ${fmt(pot.target)} for "${pot.name}"`, '🏆');
+  addPetXp(25);
 }
 
-function reload() {
-  saveData();
-  renderAll();
-}
-
-/* ============================== DOWNLOADS ============================== */
+/* ============================== EXPORT / RESTORE ============================== */
 
 function download(filename, content, type) {
   const blob = new Blob([content], { type });
@@ -1324,153 +775,132 @@ function download(filename, content, type) {
   URL.revokeObjectURL(a.href);
 }
 
+function backupData() {
+  const payload = { app: 'spendsync', version: 3, exportedAt: new Date().toISOString(), data: state };
+  download('spendsync-backup-' + new Date().toISOString().slice(0, 10) + '.json', JSON.stringify(payload, null, 2), 'application/json');
+  sfx.success();
+  toast('Backup downloaded!', '💾');
+}
+
+async function restoreData(ev) {
+  const file = ev.target.files && ev.target.files[0];
+  ev.target.value = '';
+  if (!file) return;
+  try {
+    const text = await file.text();
+    const parsed = JSON.parse(text);
+    const d = parsed && parsed.data ? parsed.data : parsed;
+    if (!d || (!Array.isArray(d.expenses) && !Array.isArray(d.incomes))) throw new Error('bad backup');
+    state = normalizeState(d);
+    saveData();
+    renderAll();
+    sfx.success();
+    burst(1.2);
+    toast('Backup restored!', '🎉');
+  } catch (err) {
+    sfx.error();
+    toast('Invalid backup file', '⚠️');
+  }
+}
+
 function downloadCSV() {
-  const monthExp = expensesInMonth(summaryMonth).sort((a, b) => (a.date < b.date ? -1 : 1));
-  const incs = incomesInMonth(summaryMonth).sort((a, b) => (a.date < b.date ? -1 : 1));
+  const monthExp = expensesInMonth(dashMonth).sort((a, b) => (a.date < b.date ? -1 : 1));
+  const incs = incomesInMonth(dashMonth).sort((a, b) => (a.date < b.date ? -1 : 1));
   const rows = [
-    ['Type', 'Date', 'Category', 'Name', 'Amount (RM)', 'Rating', 'Repeats', 'Notes'],
-    ...incs.map((i) => ['income', i.date, '—', i.name, i.amount.toFixed(2), '', i.repeat ? 'yes' : '', '']),
-    ...monthExp.map((e) => ['expense', e.date, e.category, e.name, e.amount.toFixed(2), e.rate ? e.rate : '', e.repeat ? 'yes' : '', e.notes || ''])
+    ['Type', 'Date', 'Category', 'Name', 'Amount (RM)', 'Rating', 'Repeats', 'Budget Impact', 'Notes'],
+    ...incs.map((i) => ['income', i.date, '—', i.name, i.amount.toFixed(2), '', i.repeat ? 'yes' : '', '', '']),
+    ...monthExp.map((e) => ['expense', e.date, e.category, e.name, e.amount.toFixed(2), e.rate ? e.rate : '', e.repeat ? 'yes' : '', e.budgetImpact || 'daily', e.notes || ''])
   ];
   const csv = rows.map((r) => r.map((v) => '"' + String(v).replace(/"/g, '""') + '"').join(',')).join('\r\n');
-  download(`spendsync-${summaryMonth}.csv`, '\uFEFF' + csv, 'text/csv;charset=utf-8');
+  download(`spendsync-${dashMonth}.csv`, '\uFEFF' + csv, 'text/csv;charset=utf-8');
   sfx.success();
   toast('CSV downloaded!', '📥');
 }
 
 function downloadReport() {
-  const monthExp = expensesInMonth(summaryMonth).sort((a, b) => (a.date < b.date ? -1 : 1));
+  const monthExp = expensesInMonth(dashMonth).sort((a, b) => (a.date < b.date ? -1 : 1));
   const spent = sum(monthExp);
-  const budget = state.budgets[summaryMonth] || 0;
-  const income = incomeForMonth(summaryMonth);
+  const dailySpent = sum(monthExp.filter((t) => t.budgetImpact === 'daily'));
+  const capitalSpent = spent - dailySpent;
+  const budget = state.budgets[dashMonth] || 0;
+  const income = incomeForMonth(dashMonth);
   const net = income - spent;
-  const byCat = {};
-  monthExp.forEach((e) => { byCat[e.category] = (byCat[e.category] || 0) + e.amount; });
-  const incs = incomesInMonth(summaryMonth);
   const rated = monthExp.filter((e) => e.rate >= 1 && e.rate <= 5);
   const score = rated.length ? Math.round((rated.reduce((a, e) => a + e.rate, 0) / rated.length) * 10) / 10 : 0;
-  const daysElapsed = summaryMonth === monthKey(iso(today())) ? Math.max(1, new Date().getDate()) : daysInMonth(summaryMonth);
-
   const lines = [];
   lines.push('========================================');
   lines.push('   💸 SPENDSYNC — MONTHLY REPORT');
   lines.push('========================================');
-  lines.push(`Month:        ${monthLabel(summaryMonth)}`);
+  lines.push(`Month:        ${monthLabel(dashMonth)}`);
   lines.push(`Generated:    ${new Date().toLocaleString('en-MY')}`);
   lines.push('');
   lines.push('--- SUMMARY ---');
   lines.push(`Budget:       ${budget > 0 ? fmt(budget) : 'Not set'}`);
   lines.push(`Income:       ${income > 0 ? fmt(income) : 'Not set'}`);
-  lines.push(`Net savings:  ${income > 0 ? fmt(net) : '—'}`);
+  lines.push(`Net cashflow: ${income > 0 ? fmt(net) : '—'}`);
   lines.push(`Total spent:  ${fmt(spent)}`);
-  lines.push(`Remaining:    ${budget > 0 ? fmt(budget - spent) : '—'}${budget > 0 && budget - spent < 0 ? ' (OVER BUDGET!)' : ''}`);
-  lines.push(`Transactions: ${monthExp.length}`);
-  lines.push(`Daily avg:    ${fmt(spent / daysElapsed)}`);
+  lines.push(`Daily spent:  ${fmt(dailySpent)}`);
+  lines.push(`Capital:      ${fmt(capitalSpent)}`);
   lines.push(`Value score:  ${rated.length ? score.toFixed(1) + '/5 (' + rated.length + ' rated)' : '—'}`);
-  lines.push('');
-  if (incs.length) {
-    lines.push('--- INCOME SOURCES ---');
-    incs.forEach((i) => lines.push(`  ${i.name.padEnd(18)} ${fmt(i.amount)}${i.repeat ? '  (repeats)' : ''}`));
-    lines.push('');
-  }
-  lines.push('--- TOP CATEGORIES ---');
-  Object.entries(byCat).sort((a, b) => b[1] - a[1]).forEach(([k, v]) => {
-    lines.push(`  ${k.padEnd(18)} ${fmt(v)}`);
-  });
   lines.push('');
   lines.push('--- TRANSACTIONS ---');
   if (monthExp.length === 0) {
     lines.push('  (none)');
   } else {
     monthExp.forEach((e) => {
-      lines.push(`  [${e.date}] ${e.name} — ${fmt(e.amount)} (${e.category})${e.rate ? ' ' + RATE_EMOJIS[e.rate] : ''}${e.repeat ? ' 🔁' : ''}${e.notes ? ' — ' + e.notes : ''}`);
+      lines.push(`  [${e.date}] ${e.name} — ${fmt(e.amount)} (${e.category}, ${e.budgetImpact})${e.rate ? ' ' + RATE_EMOJIS[e.rate] : ''}${e.repeat ? ' 🔁' : ''}`);
     });
   }
   lines.push('');
   lines.push('Tracked with 💜 by SpendSync');
-
-  download(`spendsync-report-${summaryMonth}.txt`, lines.join('\r\n'), 'text/plain;charset=utf-8');
+  download(`spendsync-report-${dashMonth}.txt`, lines.join('\r\n'), 'text/plain;charset=utf-8');
   sfx.success();
   toast('Report downloaded!', '📥');
 }
 
 /* ============================== EVENTS ============================== */
 
-function switchTab(name) {
-  view = name;
-  document.querySelectorAll('.tab').forEach((t) => t.classList.toggle('active', t.dataset.tab === name));
-  document.querySelectorAll('.tab-view').forEach((v) => v.classList.toggle('active', v.id === 'tab-' + name));
-  $('#fab').style.display = name === 'pots' ? 'none' : 'flex';
-  sfx.click();
-  if (name === 'pots') renderPots();
-  if (name === 'summary') renderSummary();
-  if (name === 'cat') renderCatTab();
-}
-
-function renderCatTab() {
-  const info = petXpInfo();
-  const key = dashMonth;
-  const mood = petMood(key);
-  $('#cat-svg-big').innerHTML = catSVG(info.lv, mood);
-  $('#cat-name').textContent = state.petName || 'Duit';
-  $('#cat-level').textContent = 'LV ' + (info.lv + 1) + ' · ' + info.tag;
-  $('#cat-line').textContent = info.line;
-  $('#cat-xp').textContent = info.xp + ' XP' + (info.next ? ' · ' + (info.next.xp - info.xp) + ' to ' + info.next.tag : ' · MAX LEVEL');
-  $('#cat-xp-fill-big').style.width = info.pct + '%';
-  $('#cat-meta').textContent = petMoodText(mood);
-  const shelf = $('#ach-shelf');
-  const have = new Set(state.awards);
-  shelf.innerHTML = ACHIEVEMENTS.map((a) => {
-    const got = have.has(a.id);
-    return `<div class="ach ${got ? 'got' : 'locked'}">
-      <span class="ach-ico">${got ? a.icon : '🔒'}</span>
-      <span class="ach-txt"><b>${esc(a.title)}</b><small>${esc(a.desc)}</small></span>
-      ${got ? '<span class="ach-check">✓</span>' : ''}
-    </div>`;
-  }).join('');
-  const count = state.awards.length;
-  $('#ach-count').textContent = count + ' / ' + ACHIEVEMENTS.length;
-}
-
-function petMoodText(mood) {
-  return {
-    grumpy: '🙀 Grumpy — overspent this month!',
-    worried: '😿 Worried — getting close to your budget.',
-    happy: '😻 Happy — money is flowing nicely!'
-  }[mood];
-}
-
 function setupEvents() {
-  document.querySelectorAll('.tab').forEach((t) => t.addEventListener('click', () => switchTab(t.dataset.tab)));
+  $$('.nav-item').forEach((b) => b.addEventListener('click', () => switchTab(b.dataset.tab)));
+  $('#home-prev').addEventListener('click', () => navMonth(-1));
+  $('#home-next').addEventListener('click', () => navMonth(1));
 
-  function navMonth(delta) {
-    dashMonth = shiftMonth(dashMonth, delta);
-    const moved = rollRecurring();
-    if (moved) { saveData(); toast(moved + ' recurring item(s) rolled into ' + monthLabel(dashMonth), '🔁'); }
-    renderBudget(); renderPeriod(); renderCharts(); renderCategories(); renderExpenses(); renderPetWidget();
-    sfx.click();
-  }
-  $('#prev-month').addEventListener('click', () => navMonth(-1));
-  $('#next-month').addEventListener('click', () => navMonth(1));
-  $('#sum-prev').addEventListener('click', () => { summaryMonth = shiftMonth(summaryMonth, -1); year = Number(summaryMonth.slice(0, 4)); renderSummary(); sfx.click(); });
-  $('#sum-next').addEventListener('click', () => { summaryMonth = shiftMonth(summaryMonth, 1); year = Number(summaryMonth.slice(0, 4)); renderSummary(); sfx.click(); });
-  $('#year-prev').addEventListener('click', () => { year--; const [y, m] = summaryMonth.split('-'); summaryMonth = year + '-' + m; renderSummary(); sfx.click(); });
-  $('#year-next').addEventListener('click', () => { year++; const [y, m] = summaryMonth.split('-'); summaryMonth = year + '-' + m; renderSummary(); sfx.click(); });
-
-  document.querySelectorAll('.pill').forEach((p) => {
-    p.addEventListener('click', () => {
-      document.querySelectorAll('.pill').forEach((x) => x.classList.toggle('active', x === p));
-      period = p.dataset.period;
-      renderPeriod();
-      sfx.click();
-    });
-  });
-
+  $('#add-expense-btn').addEventListener('click', () => openExpenseModal(null));
   $('#edit-budget').addEventListener('click', openBudgetModal);
   $('#edit-income').addEventListener('click', openIncomeModal);
-  $('#add-expense-btn').addEventListener('click', () => openExpenseModal(null));
-  $('#fab').addEventListener('click', () => openExpenseModal(null));
   $('#add-pot-btn').addEventListener('click', () => openPotModal(null));
+
+  $('#month-list').addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-act]');
+    if (!btn) return;
+    const exp = state.expenses.find((x) => x.id === btn.dataset.id);
+    if (!exp) return;
+    if (btn.dataset.act === 'edit') openExpenseModal(exp);
+    else deleteExpense(exp);
+  });
+
+  $('#category-grid').addEventListener('click', (e) => {
+    const card = e.target.closest('.cat-card');
+    if (card) openCategorySheet(card.dataset.category);
+  });
+
+  $('#pot-grid').addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-act]');
+    if (!btn) return;
+    const pot = state.pots.find((x) => x.id === btn.dataset.id);
+    if (!pot) return;
+    if (btn.dataset.act === 'fund') openFundModal(pot);
+    else if (btn.dataset.act === 'edit') openPotModal(pot);
+    else deletePot(pot);
+  });
+
+  $('#income-list').addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-act="del-income"]');
+    if (btn) deleteIncome(btn.dataset.id);
+  });
+
+  $('#sheet-close').addEventListener('click', closeCategorySheet);
+  $('#sheet-backdrop').addEventListener('click', closeCategorySheet);
 
   $('#expense-form').addEventListener('submit', saveExpense);
   $('#budget-form').addEventListener('submit', saveBudget);
@@ -1478,15 +908,15 @@ function setupEvents() {
   $('#pot-form').addEventListener('submit', savePot);
   $('#fund-form').addEventListener('submit', fundPot);
 
-  document.querySelectorAll('.rate-btn').forEach((b) => {
-    b.addEventListener('click', () => pickRate(Number(b.dataset.rate)));
-  });
+  $$('.rate-btn').forEach((b) => b.addEventListener('click', () => pickRate(Number(b.dataset.rate))));
   $('#rate-clear').addEventListener('click', () => pickRate(0));
-  $('#income-list').addEventListener('click', (e) => {
-    const btn = e.target.closest('[data-act="del-income"]');
-    if (!btn) return;
-    deleteIncome(btn.dataset.id);
-    $('#income-list').innerHTML = renderIncomeList();
+
+  $$('.quick-chips .ghost-btn').forEach((c) => {
+    c.addEventListener('click', () => {
+      const input = c.closest('.modal-card').querySelector('input[type="number"]');
+      if (input) input.value = c.dataset.amount;
+      sfx.click();
+    });
   });
 
   $('#expense-delete').addEventListener('click', async () => {
@@ -1502,45 +932,18 @@ function setupEvents() {
     closeModal('#pot-modal');
   });
 
-  document.querySelectorAll('.quick-chips .chip-btn').forEach((c) => {
-    c.addEventListener('click', () => {
-      const input = c.closest('.modal-card').querySelector('input[type="number"]');
-      if (input) input.value = c.dataset.amount;
-      sfx.click();
-    });
-  });
-
-  $('#sound-btn').addEventListener('click', () => {
-    soundOn = !soundOn;
-    localStorage.setItem('ss_sound', soundOn ? 'on' : 'off');
-    updateSoundBtn();
-    if (soundOn) sfx.success();
-  });
-
-  $('#pet-svg').addEventListener('click', () => {
-    petReaction($('#pet-svg'));
+  $('#cat-row').addEventListener('click', () => {
+    petReaction($('#cat-svg'));
     addPetXp(2);
-    renderPetWidget();
+    renderBudget();
     sfx.coin();
     toast('Duit purrs (+2 XP)', '🐱');
   });
-
-  $('#rename-pet-btn').addEventListener('click', () => {
-    const name = prompt('Name your money cat:', state.petName || 'Duit');
-    if (name && name.trim()) {
-      state.petName = name.trim().slice(0, 24);
-      saveData();
-      renderCatTab();
-      sfx.success();
+  $('#cat-row').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      $('#cat-row').click();
     }
-  });
-
-  $('#cat-svg-big').addEventListener('click', () => {
-    petReaction($('#cat-svg-big'));
-    addPetXp(2);
-    renderCatTab();
-    sfx.coin();
-    toast('Duit purrs (+2 XP)', '🐱');
   });
 
   $('#download-csv').addEventListener('click', downloadCSV);
@@ -1551,77 +954,36 @@ function setupEvents() {
   });
   $('#restore-file').addEventListener('change', restoreData);
 
-  document.addEventListener('click', (e) => {
-    if (e.target.closest('.btn, .tab, .pill, .icon-btn, .chip-btn, .mini-btn')) sfx.click();
+  $('#sound-btn').addEventListener('click', () => {
+    soundOn = !soundOn;
+    localStorage.setItem('ss_sound', soundOn ? 'on' : 'off');
+    updateSoundBtn();
+    if (soundOn) sfx.success();
   });
 
-  $('#expense-category').innerHTML = CATEGORIES.map((c) => `<option value="${c.name}">${c.emoji} ${c.name}</option>`).join('');
-  setupSwipes();
-}
+  document.querySelectorAll('[data-close]').forEach((b) => {
+    b.addEventListener('click', () => closeModal('#' + b.dataset.close));
+  });
+  document.querySelectorAll('.modal').forEach((m) => {
+    m.addEventListener('click', (e) => { if (e.target === m) closeModal('#' + m.id); });
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== 'Escape') return;
+    const open = document.querySelector('.modal.open');
+    if (open) closeModal('#' + open.id);
+    else if ($('#category-sheet').classList.contains('open')) closeCategorySheet();
+  });
 
-function setupSwipes() {
-  if (!('ontouchstart' in window)) return;
-
-  const swipe = { sx: 0, sy: 0, item: null };
-
-  document.addEventListener('touchstart', (e) => {
-    const t = e.changedTouches[0];
-    swipe.sx = t.clientX;
-    swipe.sy = t.clientY;
-    swipe.item = e.target.closest('.expense-item') || null;
-  }, { passive: true });
-
-  document.addEventListener('touchmove', (e) => {
-    if (!swipe.item) return;
-    const t = e.changedTouches[0];
-    const dx = t.clientX - swipe.sx;
-    const dy = t.clientY - swipe.sy;
-    if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 12) e.preventDefault();
-  }, { passive: false });
-
-  document.addEventListener('touchend', (e) => {
-    const t = e.changedTouches[0];
-    const dx = t.clientX - swipe.sx;
-    const dy = t.clientY - swipe.sy;
-    const item = swipe.item;
-    swipe.item = null;
-    if (Math.abs(dx) < 60 || Math.abs(dx) < Math.abs(dy) * 1.4) return;
-
-    if (item) {
-      if (dx < 0) {
-        const delBtn = item.querySelector('[data-act="del"]');
-        if (delBtn) {
-          const exp = state.expenses.find((x) => x.id === delBtn.dataset.id);
-          if (exp) deleteExpense(exp);
-        }
-      }
-      return;
-    }
-
-    if (view === 'dashboard') {
-      dashMonth = shiftMonth(dashMonth, dx < 0 ? 1 : -1);
-      renderBudget(); renderPeriod(); renderCharts(); renderCategories(); renderExpenses();
-    } else if (view === 'summary') {
-      summaryMonth = shiftMonth(summaryMonth, dx < 0 ? 1 : -1);
-      year = Number(summaryMonth.slice(0, 4));
-      renderSummary();
-    }
-    sfx.click();
-  }, { passive: true });
-}
-
-function startClock() {
-  const el = $('#clock');
-  const tick = () => {
-    const d = new Date();
-    el.textContent = d.toLocaleTimeString('en-MY', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-  };
-  tick();
-  setInterval(tick, 1000);
+  $('#expense-category').innerHTML = CATEGORIES.map((c) => `<option value="${c.name}">${c.emoji} ${c.name}${c.type === 'need' ? ' (need)' : c.type === 'want' ? ' (want)' : ' (save)'}</option>`).join('');
 }
 
 /* ============================== INIT ============================== */
 
 setupEvents();
-startClock();
-boot();
+updateSoundBtn();
+$('#splash').style.display = 'none';
+$('#app').style.display = 'block';
+renderAll();
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('sw.js').catch(() => {});
+}

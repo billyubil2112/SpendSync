@@ -1,10 +1,10 @@
-const CACHE = 'spendsync-v5';
+const CACHE = 'spendsync-v6';
 const ASSETS = [
   './',
   './index.html',
   './styles.css',
   './app.js',
-  './bg.jpg',
+  './state.js',
   './manifest.json',
   './favicon.svg',
   './icon-192.png',

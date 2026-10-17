@@ -3,14 +3,14 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#0f0b24" />
+  <title>SpendSync · Budget Tracker</title>
+  <meta name="description" content="SpendSync — a budget tracker with daily pace, capital cost awareness, saving pots and a Money Cat." />
   <link rel="manifest" href="manifest.json" />
-  <meta name="theme-color" content="#0b1020" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="SpendSync" />
-  <meta name="description" content="SpendSync — a fun, interactive budget tracker" />
-  <title>SpendSync · Budget Tracker</title>
   <link rel="apple-touch-icon" href="apple-touch-icon.png" />
   <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png" />
   <link rel="icon" type="image/svg+xml" href="favicon.svg" />
@@ -20,12 +20,6 @@
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
-  <div class="bg">
-    <div class="bg-img" style="background-image:url('bg.jpg')"></div>
-    <div class="bg-tint"></div>
-    <div class="bg-aurora"></div>
-  </div>
-
   <!-- Loading splash -->
   <div id="splash" class="splash">
     <div class="splash-card">
@@ -36,231 +30,189 @@
     </div>
   </div>
 
-  <div id="app" style="display:none">
-    <header class="topbar glass">
-      <div class="brand">
-        <span class="brand-icon"><svg width="28" height="28" viewBox="0 0 100 100" style="vertical-align:middle"><rect width="100" height="100" rx="22" fill="#F7B733"/><g><rect x="29" y="25" width="30" height="22" rx="5" fill="#fff" opacity="0.55"/><rect x="23" y="29" width="55" height="42" rx="8" fill="#fff"/></g><rect x="29" y="29" width="55" height="14" rx="5" fill="#F2A00C"/><rect x="66" y="47" width="9" height="9" rx="4.5" fill="#E86A17"/><rect x="29" y="54" width="24" height="5" rx="2.5" fill="#F2A00C"/></svg></span>
-        <span class="brand-name">Spend<b>Sync</b></span>
+  <div id="app" class="app" style="display:none">
+
+    <!-- ============ HOME ============ -->
+    <section id="tab-home" class="tab-view active" role="tabpanel" aria-labelledby="nav-home">
+      <header class="page-head">
+        <div>
+          <p class="eyebrow" id="home-month">—</p>
+          <h1>Good evening, Billy</h1>
+        </div>
+        <div class="month-nav" role="group" aria-label="Month navigation">
+          <button id="home-prev" class="nav-arrow" aria-label="Previous month">‹</button>
+          <button id="home-next" class="nav-arrow" aria-label="Next month">›</button>
+        </div>
+      </header>
+
+      <article class="card allowance-card">
+        <p class="card-label">Remaining Daily Allowance</p>
+        <div class="allowance-value">
+          <span class="currency">RM</span><span id="home-allowance">0.00</span>
+        </div>
+        <div class="pace-track" aria-hidden="true"><i id="home-pace-fill"></i></div>
+        <div class="allowance-meta">
+          <span id="home-used">—</span>
+          <span id="home-left">—</span>
+        </div>
+        <div class="streak-row" id="streak-row">
+          <span class="streak-chip" id="streak-chip">🔥 <b id="streak-num">0</b> days on pace</span>
+          <span class="streak-chip" id="capital-chip">🏦 <b id="capital-amt">RM 0</b> capital this month</span>
+        </div>
+      </article>
+
+      <div class="section-row">
+        <h2>Today</h2>
+        <span class="section-count" id="home-count">—</span>
       </div>
-      <div class="topbar-right">
-        <div class="clock" id="clock">--:--</div>
-        <button id="sound-btn" class="icon-btn" title="Toggle sound" aria-label="Toggle sound">🔊</button>
+      <div id="home-list" class="txn-list"></div>
+
+      <div class="section-row" style="margin-top:26px">
+        <h2>This Month</h2>
+        <button id="add-expense-btn" class="ghost-btn small">＋ Add expense</button>
       </div>
-    </header>
+      <div id="month-list" class="txn-list"></div>
+    </section>
 
-      <nav class="tabs glass">
-      <button class="tab active" data-tab="dashboard">📊 <span>Dashboard</span></button>
-      <button class="tab" data-tab="pots">🏺 <span>Saving Pots</span></button>
-      <button class="tab" data-tab="summary">📄 <span>Summary</span></button>
-      <button class="tab" data-tab="cat">🐱 <span>Money Cat</span></button>
-    </nav>
-
-    <main class="content">
-
-      <!-- ============ DASHBOARD ============ -->
-      <section id="tab-dashboard" class="tab-view active">
-        <div class="month-nav">
-          <button id="prev-month" class="icon-btn" aria-label="Previous month">‹</button>
-          <h2 id="month-label">—</h2>
-          <button id="next-month" class="icon-btn" aria-label="Next month">›</button>
+    <!-- ============ ANALYTICS ============ -->
+    <section id="tab-analytics" class="tab-view" role="tabpanel" aria-labelledby="nav-analytics" hidden>
+      <header class="page-head">
+        <div>
+          <p class="eyebrow" id="an-month">—</p>
+          <h1>Where it went</h1>
         </div>
+      </header>
 
-        <!-- Budget hero -->
-        <div class="budget-hero glass">
-          <div class="hero-left">
-            <div class="hero-label">Monthly Budget</div>
-            <div class="hero-amount" id="budget-amount">RM 0</div>
-            <div class="hero-chip-row">
-              <button id="edit-budget" class="chip-btn">✎ Edit budget</button>
-              <button id="edit-income" class="chip-btn">💵 Add income</button>
-            </div>
-            <div class="hero-income-line" id="income-line"></div>
-          </div>
-          <div class="hero-ring" id="budget-ring">
-            <svg viewBox="0 0 120 120">
-              <circle class="ring-bg" cx="60" cy="60" r="52" />
-              <circle id="budget-ring-fg" class="ring-fg" cx="60" cy="60" r="52" />
-            </svg>
-            <div class="ring-text">
-              <span class="ring-num" id="budget-pct">0%</span>
-              <span class="ring-cap">used</span>
-            </div>
-          </div>
-          <div class="hero-stats">
-            <div class="hero-stat">
-              <span class="hs-label">Spent</span>
-              <span class="hs-value bad" id="stat-spent">RM 0</span>
-            </div>
-            <div class="hero-stat">
-              <span class="hs-label">Left</span>
-              <span class="hs-value good" id="stat-left">RM 0</span>
-            </div>
-            <div class="hero-stat">
-              <span class="hs-label">Daily allowance</span>
-              <span class="hs-value" id="stat-daily">RM 0</span>
-            </div>
-            <div class="hero-stat">
-              <span class="hs-label">Weekly allowance</span>
-              <span class="hs-value" id="stat-weekly">RM 0</span>
-            </div>
-            <div class="hero-stat">
-              <span class="hs-label">Net (income − spent)</span>
-              <span class="hs-value" id="stat-net">—</span>
-            </div>
-          </div>
+      <div class="section-row">
+        <h2>Categories</h2>
+        <span class="section-hint">Tap to drill down</span>
+      </div>
+      <div id="category-grid" class="category-grid"></div>
+
+      <article class="card">
+        <p class="card-label">Spending by category</p>
+        <div class="chart-wrap"><canvas id="pie-chart"></canvas></div>
+        <div id="pie-empty" class="placeholder-note" style="display:none">No spending yet this month 🎉</div>
+      </article>
+
+      <article class="card">
+        <p class="card-label">Daily trend</p>
+        <div class="chart-wrap"><canvas id="bar-chart"></canvas></div>
+      </article>
+
+      <div class="section-row">
+        <h2>Cashflow</h2>
+      </div>
+      <div id="cashflow-grid" class="cashflow-grid"></div>
+    </section>
+
+    <!-- ============ BUDGET / SETTINGS ============ -->
+    <section id="tab-budget" class="tab-view" role="tabpanel" aria-labelledby="nav-budget" hidden>
+      <header class="page-head">
+        <div>
+          <p class="eyebrow" id="bd-month">—</p>
+          <h1>Budget &amp; play</h1>
         </div>
+      </header>
 
-        <!-- Game strip: Money Cat + pace -->
-        <div class="game-strip">
-          <div class="card glass pet-card" id="pet-card" role="button" tabindex="0" aria-label="Tap to pet your cat">
-            <div class="pet-svg" id="pet-svg"></div>
-            <div class="pet-info">
-              <div class="pet-head">
-                <b id="pet-tag">Lil Furball</b>
-                <span class="pet-lv" id="pet-lv">LV 1/5</span>
-              </div>
-              <div class="pet-line" id="pet-line">…</div>
-              <div class="pet-xp"><i id="pet-xp-fill"></i></div>
-              <div class="pet-meta" id="pet-meta">…</div>
-            </div>
-          </div>
-          <div class="card glass pace-card">
-            <div class="pace-head">
-              <span class="pace-label">🐢 Daily pace</span>
-              <span class="pace-num" id="pace-num">—</span>
-            </div>
-            <div class="pace-bar"><i id="pace-bar-fill"></i></div>
-            <div class="pace-cap" id="pace-cap">…</div>
-            <div class="pace-chips" id="pace-chips">
-              <span class="streak-chip" id="streak-chip">🔥 <b id="streak-num">0</b> days on pace</span>
-            </div>
-          </div>
+      <article class="card setting-card">
+        <div class="setting-head">
+          <p class="card-label">Monthly Income</p>
+          <button id="edit-income" class="ghost-btn small">💵 Manage income</button>
         </div>
+        <div class="setting-value" id="budget-income">RM 0.00</div>
+        <div class="setting-sub" id="income-line">Add income to see net savings.</div>
+      </article>
 
-        <!-- 50/30/20 split -->
-        <div class="card glass">
-          <h3 class="card-title">50 / 30 / 20 Split</h3>
-          <div id="split-box"></div>
+      <article class="card setting-card">
+        <div class="setting-head">
+          <p class="card-label">Fixed Monthly Budget</p>
+          <button id="edit-budget" class="ghost-btn small">✎ Edit budget</button>
         </div>
+        <div class="setting-value" id="budget-fixed">Not set</div>
+        <div class="setting-sub" id="budget-sub">—</div>
+      </article>
 
-        <!-- Period pills -->
-        <div class="period-row">
-          <div class="period-pills">
-            <button class="pill active" data-period="day">Today</button>
-            <button class="pill" data-period="week">This Week</button>
-            <button class="pill" data-period="month">This Month</button>
-          </div>
-          <div class="period-readout glass" id="period-readout"></div>
-        </div>
-
-        <!-- Charts -->
-        <div class="chart-grid">
-          <div class="card glass">
-            <h3 class="card-title">By Category <span class="hint">(this month)</span></h3>
-            <div class="chart-wrap pie"><canvas id="pie-chart"></canvas></div>
-            <div id="pie-empty" class="empty-msg" style="display:none">No spending yet this month 🎉</div>
-          </div>
-          <div class="card glass">
-            <h3 class="card-title">Daily Trend <span class="hint">(this month)</span></h3>
-            <div class="chart-wrap"><canvas id="bar-chart"></canvas></div>
-          </div>
-        </div>
-
-        <!-- Category breakdown -->
-        <div class="card glass">
-          <h3 class="card-title">Category Breakdown</h3>
-          <div id="category-list" class="cat-list"></div>
-        </div>
-
-        <!-- Transactions -->
-        <div class="card glass">
-          <div class="card-head">
-            <h3 class="card-title">Transactions</h3>
-            <button id="add-expense-btn" class="btn btn-primary small">＋ Add expense</button>
-          </div>
-          <div id="expense-list" class="expense-list"></div>
-        </div>
-      </section>
-
-      <!-- ============ POTS ============ -->
-      <section id="tab-pots" class="tab-view">
-        <div class="section-head">
-          <h2 class="section-title">Saving Pots 🏺</h2>
-          <button id="add-pot-btn" class="btn btn-primary">＋ New pot</button>
+      <article class="card setting-card">
+        <div class="setting-head">
+          <p class="card-label">Saving Pots</p>
+          <button id="add-pot-btn" class="ghost-btn small">＋ New pot</button>
         </div>
         <div id="pot-grid" class="pot-grid"></div>
-      </section>
+      </article>
 
-      <!-- ============ SUMMARY ============ -->
-      <section id="tab-summary" class="tab-view">
-        <div class="section-head">
-          <h2 class="section-title">Monthly Summary</h2>
-          <div class="summary-actions">
-            <button id="download-csv" class="btn btn-ghost">⬇ CSV</button>
-            <button id="download-report" class="btn btn-ghost">⬇ Report</button>
-            <button id="backup-btn" class="btn btn-ghost">💾 Backup</button>
-            <button id="restore-btn" class="btn btn-primary">↩ Restore</button>
-            <input type="file" id="restore-file" accept=".json,application/json" style="display:none" />
-          </div>
-        </div>
-        <div class="month-nav">
-          <button id="sum-prev" class="icon-btn" aria-label="Previous month">‹</button>
-          <h2 id="sum-month-label">—</h2>
-          <button id="sum-next" class="icon-btn" aria-label="Next month">›</button>
-        </div>
-        <div class="stat-grid" id="sum-stats"></div>
-        <div class="card glass">
-          <div class="card-head">
-            <h3 class="card-title">Year Overview</h3>
-            <div class="year-nav">
-              <button id="year-prev" class="icon-btn" aria-label="Previous year">‹</button>
-              <span id="year-label">—</span>
-              <button id="year-next" class="icon-btn" aria-label="Next year">›</button>
+      <article class="card gamify-card">
+        <div class="cat-row" id="cat-row" role="button" tabindex="0" aria-label="Tap to pet your cat">
+          <div class="cat-svg-wrap" id="cat-svg"></div>
+          <div class="cat-info">
+            <div class="cat-head-row">
+              <b id="cat-tag">Lil Furball</b>
+              <span class="cat-lv" id="cat-lv">LV 1/5</span>
             </div>
-          </div>
-          <div class="chart-wrap"><canvas id="year-chart"></canvas></div>
-          <div id="year-empty" class="empty-msg" style="display:none">No spending recorded this year 🫧</div>
-        </div>
-        <div class="card glass">
-          <h3 class="card-title">Transactions</h3>
-          <div id="sum-list" class="expense-list"></div>
-        </div>
-      </section>
-
-      <!-- ============ MONEY CAT ============ -->
-      <section id="tab-cat" class="tab-view">
-        <div class="section-head">
-          <h2 class="section-title">Money Cat 🐱</h2>
-          <button id="rename-pet-btn" class="btn btn-ghost">✎ Rename</button>
-        </div>
-        <div class="cat-stage glass" id="cat-stage">
-          <div class="cat-svg-wrap" id="cat-svg-big"></div>
-          <div class="cat-details">
-            <div class="cat-name" id="cat-name">Duit</div>
-            <div class="cat-level" id="cat-level">LV 1 · Lil Furball</div>
             <div class="cat-line" id="cat-line">…</div>
-            <div class="cat-xpbar"><i id="cat-xp-fill-big"></i></div>
-            <div class="cat-xp" id="cat-xp">0 XP</div>
+            <div class="cat-xpbar"><i id="cat-xp-fill"></i></div>
             <div class="cat-meta" id="cat-meta">…</div>
-            <div class="cat-note">Tap your cat in the dashboard to give it a little pat. Earn XP by logging expenses, income, repeat trackers and saving. 🐾</div>
           </div>
         </div>
-        <div class="card glass">
-          <div class="card-head">
-            <h3 class="card-title">Achievements</h3>
-            <span class="ach-count" id="ach-count">0 / 0</span>
-          </div>
-          <div class="ach-shelf" id="ach-shelf"></div>
+        <div class="section-row" style="margin:18px 2px 12px">
+          <h2>Achievements</h2>
+          <span class="section-count" id="ach-count">0 / 0</span>
         </div>
-      </section>
-    </main>
+        <div id="ach-shelf" class="ach-shelf"></div>
+      </article>
 
-    <button id="fab" class="fab" title="Add expense" aria-label="Add expense">＋</button>
+      <article class="card setting-card">
+        <p class="card-label">Data &amp; sound</p>
+        <div class="data-row">
+          <button id="download-csv" class="ghost-btn small">⬇ CSV</button>
+          <button id="download-report" class="ghost-btn small">⬇ Report</button>
+          <button id="backup-btn" class="ghost-btn small">💾 Backup</button>
+          <button id="restore-btn" class="ghost-btn small">↩ Restore</button>
+          <input type="file" id="restore-file" accept=".json,application/json" style="display:none" />
+          <button id="sound-btn" class="ghost-btn small" aria-label="Toggle sound">🔊</button>
+        </div>
+      </article>
+    </section>
   </div>
+
+  <!-- ============ BOTTOM NAV ============ -->
+  <nav class="bottom-nav" role="tablist" aria-label="Main navigation">
+    <button id="nav-home" class="nav-item active" role="tab" aria-selected="true" aria-controls="tab-home" data-tab="home">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/><path d="M9 21v-6h6v6"/></svg>
+      <span>Home</span>
+    </button>
+    <button id="nav-analytics" class="nav-item" role="tab" aria-selected="false" aria-controls="tab-analytics" data-tab="analytics">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20V10"/><path d="M10 20V4"/><path d="M16 20v-7"/><path d="M22 20H2"/></svg>
+      <span>Analytics</span>
+    </button>
+    <button id="nav-budget" class="nav-item" role="tab" aria-selected="false" aria-controls="tab-budget" data-tab="budget">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="6" width="18" height="15" rx="3"/><path d="M3 10h18"/><path d="M7 15h4"/><path d="M15.5 14.5l-3 3 3 3 3-3-3-3Z"/></svg>
+      <span>Budget</span>
+    </button>
+  </nav>
+
+  <!-- ============ CATEGORY DRILL-DOWN SHEET ============ -->
+  <div class="sheet-backdrop" id="sheet-backdrop" hidden></div>
+  <section class="bottom-sheet" id="category-sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-title">
+    <div class="sheet-handle" aria-hidden="true"></div>
+    <header class="sheet-head">
+      <div>
+        <p class="eyebrow">Category</p>
+        <h2 id="sheet-title">—</h2>
+      </div>
+      <button class="sheet-close" id="sheet-close" aria-label="Close drill-down">✕</button>
+    </header>
+    <div class="sheet-stats">
+      <div class="sheet-stat"><span>Total spent</span><b id="sheet-total">RM 0.00</b></div>
+      <div class="sheet-stat"><span>Transactions</span><b id="sheet-count">0</b></div>
+      <div class="sheet-stat"><span>Average cost</span><b id="sheet-avg">RM 0.00</b></div>
+    </div>
+    <div class="sheet-list" id="sheet-list"></div>
+  </section>
 
   <!-- ============ MODALS ============ -->
   <div id="expense-modal" class="modal" role="dialog" aria-modal="true" aria-label="Expense dialog">
-    <div class="modal-card glass">
+    <div class="modal-card">
       <button class="modal-close" data-close="expense-modal" aria-label="Close">✕</button>
       <h3 id="expense-modal-title">New Expense</h3>
       <form id="expense-form">
@@ -277,15 +229,11 @@
           <span>Category</span>
           <select id="expense-category"></select>
         </label>
-        <label class="field">
-          <span>Date</span>
-          <input type="date" id="expense-date" required />
-        </label>
-        <label class="field">
-          <span>Notes / Remarks</span>
-          <textarea id="expense-notes" maxlength="500" rows="3" placeholder="Any notes…"></textarea>
-        </label>
         <div class="field-row">
+          <label class="field">
+            <span>Date</span>
+            <input type="date" id="expense-date" required />
+          </label>
           <label class="field">
             <span>Worth it?</span>
             <div class="rate-row" id="rate-row">
@@ -298,27 +246,27 @@
               <button type="button" id="rate-clear" class="rate-btn clear" aria-label="Skip">skip</button>
             </div>
           </label>
-          <label class="field">
-            <span>Repeat monthly?</span>
-            <label class="switch">
-              <input type="checkbox" id="expense-repeat" />
-              <span class="switch-slider"></span>
-            </label>
-            <div class="field-hint">Bills &amp; subscriptions auto-carry to next month 🔁</div>
-          </label>
         </div>
+        <label class="field">
+          <span>Notes</span>
+          <textarea id="expense-notes" maxlength="500" rows="2" placeholder="Any notes…"></textarea>
+        </label>
+        <label class="switch-row">
+          <span>Repeat monthly (bill / subscription)</span>
+          <span class="switch"><input type="checkbox" id="expense-repeat" /><i></i></span>
+        </label>
         <div class="modal-actions">
-          <button type="button" id="expense-delete" class="btn btn-danger" style="display:none">Delete</button>
+          <button type="button" id="expense-delete" class="ghost-btn danger" style="display:none">Delete</button>
           <span class="spacer"></span>
-          <button type="button" class="btn btn-ghost" data-close="expense-modal">Cancel</button>
-          <button type="submit" class="btn btn-primary">Save</button>
+          <button type="button" class="ghost-btn" data-close="expense-modal">Cancel</button>
+          <button type="submit" class="primary-btn">Save</button>
         </div>
       </form>
     </div>
   </div>
 
   <div id="budget-modal" class="modal" role="dialog" aria-modal="true" aria-label="Set budget">
-    <div class="modal-card glass">
+    <div class="modal-card">
       <button class="modal-close" data-close="budget-modal" aria-label="Close">✕</button>
       <h3>Set Monthly Budget</h3>
       <p class="modal-sub" id="budget-modal-month"></p>
@@ -329,33 +277,31 @@
         </label>
         <div class="quick-chips">
           <span>Quick set:</span>
-          <button type="button" class="chip-btn" data-amount="500">500</button>
-          <button type="button" class="chip-btn" data-amount="1000">1k</button>
-          <button type="button" class="chip-btn" data-amount="1500">1.5k</button>
-          <button type="button" class="chip-btn" data-amount="2000">2k</button>
-          <button type="button" class="chip-btn" data-amount="3000">3k</button>
+          <button type="button" class="ghost-btn small" data-amount="500">500</button>
+          <button type="button" class="ghost-btn small" data-amount="1000">1k</button>
+          <button type="button" class="ghost-btn small" data-amount="1500">1.5k</button>
+          <button type="button" class="ghost-btn small" data-amount="2000">2k</button>
+          <button type="button" class="ghost-btn small" data-amount="3000">3k</button>
         </div>
         <div class="modal-actions">
-          <button type="button" class="btn btn-ghost" data-close="budget-modal">Cancel</button>
-          <button type="submit" class="btn btn-primary">Save budget</button>
+          <button type="button" class="ghost-btn" data-close="budget-modal">Cancel</button>
+          <button type="submit" class="primary-btn">Save budget</button>
         </div>
       </form>
     </div>
   </div>
 
-  <div id="income-modal" class="modal" role="dialog" aria-modal="true" aria-label="Add income">
-    <div class="modal-card glass">
+  <div id="income-modal" class="modal" role="dialog" aria-modal="true" aria-label="Manage income">
+    <div class="modal-card">
       <button class="modal-close" data-close="income-modal" aria-label="Close">✕</button>
       <h3>Income</h3>
       <p class="modal-sub" id="income-modal-month"></p>
       <div id="income-list" class="income-list"></div>
       <form id="income-form">
-        <div class="field-row">
-          <label class="field">
-            <span>Source</span>
-            <input type="text" id="income-name" maxlength="60" placeholder="e.g. Salary, Allowance, Side Hustle…" required />
-          </label>
-        </div>
+        <label class="field">
+          <span>Source</span>
+          <input type="text" id="income-name" maxlength="60" placeholder="e.g. Salary, Allowance, Side Hustle…" required />
+        </label>
         <div class="field-row">
           <label class="field">
             <span>Amount (RM)</span>
@@ -366,24 +312,20 @@
             <input type="date" id="income-date" required />
           </label>
         </div>
-        <label class="field">
-          <span>Repeat monthly?</span>
-          <label class="switch">
-            <input type="checkbox" id="income-repeat" />
-            <span class="switch-slider"></span>
-          </label>
-          <div class="field-hint">Salary auto-fills every month 🔁</div>
+        <label class="switch-row">
+          <span>Repeat monthly</span>
+          <span class="switch"><input type="checkbox" id="income-repeat" /><i></i></span>
         </label>
         <div class="modal-actions">
-          <button type="button" class="btn btn-ghost" data-close="income-modal">Cancel</button>
-          <button type="submit" class="btn btn-primary">Add income</button>
+          <button type="button" class="ghost-btn" data-close="income-modal">Cancel</button>
+          <button type="submit" class="primary-btn">Add income</button>
         </div>
       </form>
     </div>
   </div>
 
   <div id="pot-modal" class="modal" role="dialog" aria-modal="true" aria-label="Saving pot">
-    <div class="modal-card glass">
+    <div class="modal-card">
       <button class="modal-close" data-close="pot-modal" aria-label="Close">✕</button>
       <h3 id="pot-modal-title">New Saving Pot</h3>
       <form id="pot-form">
@@ -403,17 +345,17 @@
           </label>
         </div>
         <div class="modal-actions">
-          <button type="button" id="pot-delete" class="btn btn-danger" style="display:none">Delete</button>
+          <button type="button" id="pot-delete" class="ghost-btn danger" style="display:none">Delete</button>
           <span class="spacer"></span>
-          <button type="button" class="btn btn-ghost" data-close="pot-modal">Cancel</button>
-          <button type="submit" class="btn btn-primary">Save pot</button>
+          <button type="button" class="ghost-btn" data-close="pot-modal">Cancel</button>
+          <button type="submit" class="primary-btn">Save pot</button>
         </div>
       </form>
     </div>
   </div>
 
   <div id="fund-modal" class="modal" role="dialog" aria-modal="true" aria-label="Add money to pot">
-    <div class="modal-card glass">
+    <div class="modal-card">
       <button class="modal-close" data-close="fund-modal" aria-label="Close">✕</button>
       <h3 id="fund-title">Add money</h3>
       <p class="modal-sub" id="fund-sub"></p>
@@ -423,8 +365,8 @@
           <input type="number" id="fund-amount" min="0.01" step="0.01" placeholder="0.00" required />
         </label>
         <div class="modal-actions">
-          <button type="button" class="btn btn-ghost" data-close="fund-modal">Cancel</button>
-          <button type="submit" class="btn btn-primary">Add to pot 🎉</button>
+          <button type="button" class="ghost-btn" data-close="fund-modal">Cancel</button>
+          <button type="submit" class="primary-btn">Add to pot 🎉</button>
         </div>
       </form>
     </div>
@@ -434,6 +376,7 @@
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
+  <script src="state.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
