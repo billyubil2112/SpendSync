@@ -77,7 +77,7 @@ function burst(scale) {
     spread: 75,
     startVelocity: 42,
     origin: { x: 0.5, y: 0.7 },
-    colors: ['#f7b733', '#e86a17', '#2e9e5b', '#c93a2b', '#201a12']
+    colors: ['#c9971f', '#8a8a82', '#2e8b57', '#c4503d', '#191917']
   });
 }
 
@@ -228,10 +228,10 @@ function renderHome() {
     const fill = $('#home-pace-fill');
     fill.style.width = pct + '%';
     fill.style.background = pct > 100
-      ? 'linear-gradient(90deg, #c93a2b, #e8593f)'
+      ? 'linear-gradient(90deg, #c4503d, #d96a52)'
       : pct > 75
-        ? 'linear-gradient(90deg, #e8a20a, #e86a17)'
-        : 'linear-gradient(90deg, #2e9e5b, #f7b733)';
+        ? 'linear-gradient(90deg, #c9971f, #d9a73b)'
+        : 'linear-gradient(90deg, #191917, #4a4a44)';
     $('#home-used').textContent = fmt(used) + ' used today';
     $('#home-left').textContent = remaining >= 0 ? fmt(remaining) + ' left today' : 'Over by ' + fmt(-remaining);
   } else {
@@ -432,7 +432,7 @@ function renderAnalytics() {
         datasets: [{
           data: groups.map((g) => g.total),
           backgroundColor: groups.map((g) => cat(g.category).color),
-          borderColor: '#f5efe3',
+          borderColor: '#fcfcfa',
           borderWidth: 2,
           hoverOffset: 8
         }]
@@ -440,7 +440,7 @@ function renderAnalytics() {
       options: {
         responsive: true, maintainAspectRatio: false, cutout: '64%',
         plugins: {
-          legend: { position: 'bottom', labels: { color: '#57503f', font: { family: 'Space Grotesk', size: 11 }, boxWidth: 10, padding: 10 } }
+          legend: { position: 'bottom', labels: { color: '#6f6f68', font: { family: 'Space Grotesk', size: 11 }, boxWidth: 10, padding: 10 } }
         }
       }
     });
@@ -460,9 +460,7 @@ function renderAnalytics() {
       labels: daily.map((_, i) => i + 1),
       datasets: [{
         data: daily,
-        backgroundColor: daily.map((v) => (v > 0 ? 'rgba(247,183,51,0.9)' : 'rgba(32,26,18,0.06)')),
-        borderColor: daily.map((v) => (v > 0 ? '#201a12' : 'transparent')),
-        borderWidth: daily.map((v) => (v > 0 ? 1.5 : 0)),
+        backgroundColor: daily.map((v) => (v > 0 ? '#c9971f' : 'rgba(25,25,23,0.07)')),
         borderRadius: 3,
         borderSkipped: false
       }]
@@ -471,8 +469,8 @@ function renderAnalytics() {
       responsive: true, maintainAspectRatio: false,
       plugins: { legend: { display: false }, tooltip: { callbacks: { label: (c) => fmt(c.parsed.y) } } },
       scales: {
-        x: { grid: { display: false }, ticks: { color: '#8a8070', maxTicksLimit: 10, font: { family: 'Space Mono', size: 9 } } },
-        y: { grid: { color: 'rgba(32,26,18,0.1)' }, ticks: { color: '#57503f', font: { family: 'Space Mono', size: 10 }, callback: (v) => 'RM' + v } }
+        x: { grid: { display: false }, ticks: { color: '#a9a9a0', maxTicksLimit: 10, font: { family: 'Space Mono', size: 9 } } },
+        y: { grid: { color: 'rgba(25,25,23,0.08)' }, ticks: { color: '#6f6f68', font: { family: 'Space Mono', size: 10 }, callback: (v) => 'RM' + v } }
       }
     }
   });
@@ -683,7 +681,7 @@ function renderSheetChart(cfg) {
     responsive: true,
     maintainAspectRatio: false,
     plugins: {
-      legend: { display: !isBar, position: 'bottom', labels: { color: '#57503f', font: { family: 'Space Grotesk', size: 10 }, boxWidth: 9, padding: 8 } },
+      legend: { display: !isBar, position: 'bottom', labels: { color: '#6f6f68', font: { family: 'Space Grotesk', size: 10 }, boxWidth: 9, padding: 8 } },
       tooltip: { callbacks: { label: (c) => isBar ? fmt(c.parsed.y) : fmt(c.parsed) } }
     }
   };
@@ -694,17 +692,15 @@ function renderSheetChart(cfg) {
         labels: cfg.labels,
         datasets: [{
           data: cfg.values,
-          backgroundColor: cfg.values.map((v) => (v > 0 ? (cfg.color || '#f7b733') : 'rgba(32,26,18,0.06)')),
-          borderColor: cfg.values.map((v) => (v > 0 ? '#201a12' : 'transparent')),
-          borderWidth: cfg.values.map((v) => (v > 0 ? 1.5 : 0)),
+          backgroundColor: cfg.values.map((v) => (v > 0 ? (cfg.color || '#c9971f') : 'rgba(25,25,23,0.07)')),
           borderRadius: 3,
           borderSkipped: false
         }]
       },
       options: Object.assign({}, baseOpts, {
         scales: {
-          x: { grid: { display: false }, ticks: { color: '#8a8070', maxTicksLimit: 10, font: { family: 'Space Mono', size: 8 } } },
-          y: { grid: { color: 'rgba(32,26,18,0.1)' }, ticks: { color: '#57503f', font: { family: 'Space Mono', size: 9 }, callback: (v) => 'RM' + v } }
+          x: { grid: { display: false }, ticks: { color: '#a9a9a0', maxTicksLimit: 10, font: { family: 'Space Mono', size: 8 } } },
+          y: { grid: { color: 'rgba(25,25,23,0.08)' }, ticks: { color: '#6f6f68', font: { family: 'Space Mono', size: 9 }, callback: (v) => 'RM' + v } }
         }
       })
     });
@@ -716,7 +712,7 @@ function renderSheetChart(cfg) {
         datasets: [{
           data: cfg.values,
           backgroundColor: cfg.colors,
-          borderColor: '#f5efe3',
+          borderColor: '#fcfcfa',
           borderWidth: 2,
           hoverOffset: 6
         }]
