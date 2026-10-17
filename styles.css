@@ -84,6 +84,31 @@ body.sheet-open, body.modal-open { overflow: hidden; }
 }
 .page-head h1 { font-size: 1.7rem; font-weight: 700; letter-spacing: -0.5px; }
 
+/* ---------- View toggle ---------- */
+.view-toggle {
+  display: flex; gap: 0;
+  background: var(--paper-2); border: 2px solid var(--ink);
+  border-radius: 12px; overflow: hidden;
+  margin-bottom: 20px;
+  box-shadow: 3px 3px 0 rgba(32, 26, 18, 0.7);
+}
+.vt-btn {
+  flex: 1; font-family: var(--font); font-size: 0.85rem; font-weight: 700; cursor: pointer;
+  color: var(--ink-soft); background: transparent; border: none; padding: 10px 14px;
+  transition: all 0.15s;
+}
+.vt-btn + .vt-btn { border-left: 2px solid var(--ink); }
+.vt-btn:hover { color: var(--ink); }
+.vt-btn.active { color: var(--ink); background: var(--amber); }
+
+/* Split bars (total card) */
+.split-track {
+  height: 14px; border-radius: 8px; background: var(--paper-2);
+  border: 2px solid var(--ink); overflow: hidden; margin-bottom: 8px;
+}
+.split-track i { display: block; height: 100%; background: var(--amber); }
+.split-legend { display: flex; justify-content: space-between; font-family: var(--mono); font-size: 0.66rem; color: var(--ink-soft); }
+
 .month-nav { display: flex; gap: 8px; }
 .nav-arrow {
   width: 42px; height: 42px; border-radius: 10px;
@@ -219,10 +244,16 @@ body.sheet-open, body.modal-open { overflow: hidden; }
   display: flex; align-items: center; gap: 10px;
   background: var(--paper-2); border-bottom: 2px dashed rgba(32, 26, 18, 0.4);
   padding: 10px 14px;
+  width: 100%; border-top: none; border-left: none; border-right: none;
+  font-family: var(--font); text-align: left; cursor: pointer;
+  transition: background 0.15s;
 }
+.log-head:hover { background: #e6dcc3; }
+.log-head:active { background: #ddd2b4; }
 .log-date { font-family: var(--mono); font-weight: 700; font-size: 0.8rem; flex: 1; }
 .log-total { font-family: var(--mono); font-weight: 700; font-size: 0.88rem; font-variant-numeric: tabular-nums; }
-.log-status { font-family: var(--mono); font-size: 0.62rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
+.log-status { font-family: var(--mono); font-size: 0.62rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; white-space: nowrap; }
+.log-hide-note { font-family: var(--mono); font-size: 0.58rem; color: var(--ink-faint); white-space: nowrap; }
 .log-items { padding: 4px 14px; }
 .log-item {
   display: flex; align-items: center; gap: 10px;
@@ -462,7 +493,7 @@ body.sheet-open, body.modal-open { overflow: hidden; }
 
 .sheet-stats {
   display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px;
-  margin-bottom: 20px;
+  margin-bottom: 18px;
 }
 .sheet-stat {
   background: var(--card); border: 2px solid var(--ink);
@@ -473,6 +504,11 @@ body.sheet-open, body.modal-open { overflow: hidden; }
 .sheet-stat b { font-family: var(--mono); font-size: 0.95rem; font-weight: 700; font-variant-numeric: tabular-nums; }
 
 .sheet-list { overflow-y: auto; display: flex; flex-direction: column; gap: 8px; padding-bottom: 8px; }
+.sheet-chart-wrap {
+  height: 170px; margin-bottom: 18px; flex-shrink: 0;
+  background: var(--card); border: 2px solid var(--ink); border-radius: 10px;
+  padding: 10px; box-shadow: 2px 2px 0 rgba(32, 26, 18, 0.6);
+}
 
 /* ---------- Modals ---------- */
 .modal {

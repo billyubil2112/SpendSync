@@ -13,12 +13,14 @@ const RATE_LABELS = ['', 'regret', 'meh', 'eh, ok', 'worth it', 'loved it'];
 
 let view = 'home';
 let dashMonth = monthKey(today());
+let homeView = localStorage.getItem('ss_view') || 'pace';
 let period = 'day';
 let fundPotId = null;
 let lastDeleted = null;
 let lastDeletedType = null;
 let pieChart = null;
 let barChart = null;
+let sheetChart = null;
 let soundOn = localStorage.getItem('ss_sound') !== 'off';
 let audioCtx = null;
 
@@ -207,6 +209,16 @@ function renderHome() {
   const remaining = budget > 0 ? calculateDailyPace(todayTxns, dailyAllow) : 0;
 
   $('#home-month').textContent = monthLabel(key);
+
+  // View toggle: pace vs all
+  const paceMode = homeView === 'pace';
+  $('#vt-pace').classList.toggle('active', paceMode);
+  $('#vt-all').classList.toggle('active', !paceMode);
+  $('#vt-pace').setAttribute('aria-selected', paceMode ? 'true' : 'false');
+  $('#vt-all').setAttribute('aria-selected', paceMode ? 'false' : 'true');
+  $('#pace-card').hidden = !paceMode;
+  $('#total-card').hidden = paceMode;
+
   const el = $('#home-allowance');
   if (budget > 0) {
     el.textContent = Math.max(0, remaining).toFixed(2);
@@ -230,9 +242,29 @@ function renderHome() {
     $('#home-left').textContent = 'Budget tab → Fixed Monthly Budget';
   }
 
+  // Total card (all spending view)
+  const income = incomeForMonth(key);
+  const totalSpent = sum(monthTxns);
+  $('#total-spent').textContent = totalSpent.toFixed(2);
+  $('#total-daily').textContent = 'daily ' + fmt(dailySpent);
+  $('#total-capital').textContent = 'capital ' + fmt(capitalSpent);
+  $('#total-income').textContent = fmt(income);
+  const netEl2 = $('#total-net');
+  if (income > 0) {
+    const net = income - totalSpent;
+    netEl2.textContent = (net >= 0 ? '▲ net ' : '▼ net ') + fmt(Math.abs(net));
+    netEl2.className = 'stamp chip ' + (net >= 0 ? 'ok' : 'over');
+  } else {
+    netEl2.textContent = 'no income set';
+    netEl2.className = 'stamp chip';
+  }
+  const totalPct = totalSpent > 0 ? Math.round((dailySpent / totalSpent) * 100) : 50;
+  $('#total-split').innerHTML = `
+    <div class="split-track" aria-hidden="true"><i style="width:${totalPct}%"></i></div>
+    <div class="split-legend"><span>▧ daily ${totalPct}%</span><span>▤ capital ${100 - totalPct}%</span></div>`;
+
   // Streak chip
   const streak = isCur ? onPaceStreak(key) : 0;
-  const streakRow = $('#streak-row');
   const streakChip = $('#streak-chip');
   streakChip.classList.toggle('hot', streak >= 5);
   streakChip.classList.toggle('ok', streak > 0 && streak < 5);
@@ -240,12 +272,15 @@ function renderHome() {
   $('#streak-num').textContent = streak;
   $('#capital-amt').textContent = fmt(capitalSpent);
 
-  // Today list
+  // Today list (filtered by view)
   const todayAll = state.expenses.filter((t) => t.date === todayStr);
-  $('#home-count').textContent = todayAll.length + ' transaction' + (todayAll.length === 1 ? '' : 's');
-  $('#home-list').innerHTML = todayAll.length
-    ? todayAll.map(txnItem).join('')
-    : '<p class="txn-empty">Nothing today yet. Enjoy the quiet.</p>';
+  const todayShown = paceMode ? todayAll.filter((t) => t.budgetImpact === 'daily') : todayAll;
+  const hiddenToday = todayAll.length - todayShown.length;
+  $('#home-count').textContent = todayShown.length + ' transaction' + (todayShown.length === 1 ? '' : 's') +
+    (hiddenToday > 0 ? ' · ' + hiddenToday + ' capital hidden' : '');
+  $('#home-list').innerHTML = todayShown.length
+    ? todayShown.map(txnItem).join('')
+    : '<p class="txn-empty">' + (paceMode && hiddenToday > 0 ? 'Only capital spending today. Nothing hits your daily pace. 🏦' : 'Nothing today yet. Enjoy the quiet.') + '</p>';
 
   // Daily log (grouped by date)
   renderDailyLog(key);
@@ -270,7 +305,9 @@ function renderDailyLog(key) {
     return;
   }
   el.innerHTML = dates.map((d) => {
-    const items = days[d].sort((a, b) => (b.amount < a.amount ? -1 : a.amount < b.amount ? 1 : 0));
+    const allItems = days[d].sort((a, b) => (b.amount < a.amount ? -1 : a.amount < b.amount ? 1 : 0));
+    const items = homeView === 'pace' ? allItems.filter((t) => t.budgetImpact === 'daily') : allItems;
+    const hidden = allItems.length - items.length;
     const total = sum(items);
     const over = dailyAllow > 0 && total > dailyAllow;
     const rows = items.map((t) => {
@@ -291,13 +328,17 @@ function renderDailyLog(key) {
         </div>
       </div>`;
     }).join('');
+    const status = items.length === 0
+      ? '<span class="log-status" style="color:var(--ink-faint)">capital only</span>'
+      : `<span class="log-status ${over ? 'over' : 'ok'}" style="color:${over ? 'var(--red)' : 'var(--green)'}">${over ? '▲ over pace' : 'ok'}</span>`;
     return `<div class="log-day">
-      <div class="log-head">
+      <button class="log-head" data-day="${d}" aria-label="View ${d} breakdown">
         <span class="log-date">${weekday(d)} · ${fmtDate(d)}</span>
-        <span class="log-status ${over ? 'over' : 'ok'}" style="color:${over ? 'var(--red)' : 'var(--green)'}">${over ? '▲ over pace' : 'ok'}</span>
-        <span class="log-total">${fmt(total)}</span>
-      </div>
-      <div class="log-items">${rows}</div>
+        ${status}
+        <span class="log-total">${items.length ? fmt(total) : (hidden > 0 ? fmt(sum(allItems)) + ' cap' : fmt(0))}</span>
+        ${hidden > 0 ? '<span class="log-hide-note">+' + hidden + ' cap hidden</span>' : ''}
+      </button>
+      <div class="log-items">${items.length ? rows : '<div class="log-item" style="border:none"><div class="txn-sub">Capital spending this day — tap the day to see it.</div></div>'}</div>
     </div>`;
   }).join('');
 }
@@ -569,6 +610,8 @@ function openCategorySheet(category) {
   $('#sheet-avg').textContent = fmt(avg);
   $('#sheet-list').innerHTML = group.transactions.map(txnItem).join('');
 
+  renderSheetChart(categoryBarChartData(category));
+
   $('#sheet-backdrop').hidden = false;
   requestAnimationFrame(() => {
     $('#sheet-backdrop').classList.add('show');
@@ -576,6 +619,111 @@ function openCategorySheet(category) {
   });
   document.body.classList.add('sheet-open');
   $('#sheet-close').focus();
+}
+
+// Per-day totals for a category across the viewed month.
+function categoryBarChartData(category) {
+  const days = daysInMonth(dashMonth);
+  const daily = Array(days).fill(0);
+  expensesInMonth(dashMonth)
+    .filter((t) => t.category === category)
+    .forEach((t) => {
+      const d = Number(t.date.slice(8, 10));
+      if (d >= 1 && d <= days) daily[d - 1] += t.amount;
+    });
+  return {
+    kind: 'bar',
+    labels: daily.map((_, i) => i + 1),
+    values: daily,
+    color: cat(category).color,
+    label: 'spent per day'
+  };
+}
+
+function openDaySheet(dayStr) {
+  const items = expensesInMonth(dashMonth).filter((t) => t.date === dayStr);
+  if (!items.length) return;
+  const total = sum(items);
+  const avg = total / items.length;
+  const byCat = {};
+  items.forEach((t) => { byCat[t.category] = (byCat[t.category] || 0) + t.amount; });
+  const entries = Object.entries(byCat).sort((a, b) => b[1] - a[1]);
+
+  $('#sheet-title').textContent = weekday(dayStr) + ' · ' + fmtDate(dayStr);
+  $('#sheet-total').textContent = fmt(total);
+  $('#sheet-count').textContent = items.length;
+  $('#sheet-avg').textContent = fmt(avg);
+  $('#sheet-list').innerHTML = items.map(txnItem).join('');
+
+  renderSheetChart({
+    kind: 'doughnut',
+    labels: entries.map(([k]) => k),
+    values: entries.map(([, v]) => v),
+    colors: entries.map(([k]) => cat(k).color),
+    label: 'by category'
+  });
+
+  $('#sheet-backdrop').hidden = false;
+  requestAnimationFrame(() => {
+    $('#sheet-backdrop').classList.add('show');
+    $('#category-sheet').classList.add('open');
+  });
+  document.body.classList.add('sheet-open');
+  $('#sheet-close').focus();
+}
+
+function renderSheetChart(cfg) {
+  const wrap = $('#sheet-chart-wrap');
+  const canvas = $('#sheet-chart');
+  if (sheetChart) { sheetChart.destroy(); sheetChart = null; }
+  if (!cfg) { wrap.style.display = 'none'; return; }
+  wrap.style.display = 'block';
+  const isBar = cfg.kind === 'bar';
+  const baseOpts = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: { display: !isBar, position: 'bottom', labels: { color: '#57503f', font: { family: 'Space Grotesk', size: 10 }, boxWidth: 9, padding: 8 } },
+      tooltip: { callbacks: { label: (c) => isBar ? fmt(c.parsed.y) : fmt(c.parsed) } }
+    }
+  };
+  if (isBar) {
+    sheetChart = new Chart(canvas, {
+      type: 'bar',
+      data: {
+        labels: cfg.labels,
+        datasets: [{
+          data: cfg.values,
+          backgroundColor: cfg.values.map((v) => (v > 0 ? (cfg.color || '#f7b733') : 'rgba(32,26,18,0.06)')),
+          borderColor: cfg.values.map((v) => (v > 0 ? '#201a12' : 'transparent')),
+          borderWidth: cfg.values.map((v) => (v > 0 ? 1.5 : 0)),
+          borderRadius: 3,
+          borderSkipped: false
+        }]
+      },
+      options: Object.assign({}, baseOpts, {
+        scales: {
+          x: { grid: { display: false }, ticks: { color: '#8a8070', maxTicksLimit: 10, font: { family: 'Space Mono', size: 8 } } },
+          y: { grid: { color: 'rgba(32,26,18,0.1)' }, ticks: { color: '#57503f', font: { family: 'Space Mono', size: 9 }, callback: (v) => 'RM' + v } }
+        }
+      })
+    });
+  } else {
+    sheetChart = new Chart(canvas, {
+      type: 'doughnut',
+      data: {
+        labels: cfg.labels,
+        datasets: [{
+          data: cfg.values,
+          backgroundColor: cfg.colors,
+          borderColor: '#f5efe3',
+          borderWidth: 2,
+          hoverOffset: 6
+        }]
+      },
+      options: Object.assign({}, baseOpts, { cutout: '60%' })
+    });
+  }
 }
 
 function closeCategorySheet() {
@@ -952,6 +1100,9 @@ function setupEvents() {
   $('#edit-income').addEventListener('click', openIncomeModal);
   $('#add-pot-btn').addEventListener('click', () => openPotModal(null));
 
+  $('#vt-pace').addEventListener('click', () => { homeView = 'pace'; localStorage.setItem('ss_view', 'pace'); renderHome(); sfx.click(); });
+  $('#vt-all').addEventListener('click', () => { homeView = 'all'; localStorage.setItem('ss_view', 'all'); renderHome(); sfx.click(); });
+
   $$('.period-pills .pill').forEach((p) => {
     p.addEventListener('click', () => {
       $$('.period-pills .pill').forEach((x) => x.classList.toggle('active', x === p));
@@ -962,6 +1113,8 @@ function setupEvents() {
   });
 
   $('#daily-log').addEventListener('click', (e) => {
+    const dayHead = e.target.closest('.log-head');
+    if (dayHead) { openDaySheet(dayHead.dataset.day); return; }
     const btn = e.target.closest('[data-act]');
     if (!btn) return;
     const exp = state.expenses.find((x) => x.id === btn.dataset.id);

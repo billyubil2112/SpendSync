@@ -59,9 +59,14 @@
         </div>
       </header>
 
+      <div class="view-toggle" role="tablist" aria-label="Spending view">
+        <button class="vt-btn active" id="vt-pace" role="tab" aria-selected="true">Daily pace</button>
+        <button class="vt-btn" id="vt-all" role="tab" aria-selected="false">All spending</button>
+      </div>
+
       <div class="home-grid">
         <div class="col">
-          <article class="card receipt allowance-card">
+          <article class="card receipt allowance-card" id="pace-card">
             <p class="card-label">Remaining daily allowance</p>
             <div class="allowance-value">
               <span class="currency">RM</span><span id="home-allowance">0.00</span>
@@ -74,6 +79,22 @@
             <div class="stamp-row">
               <span class="stamp chip" id="streak-chip">🔥 <b id="streak-num">0</b> days on pace</span>
               <span class="stamp chip">🏦 <b id="capital-amt">RM 0</b> capital</span>
+            </div>
+          </article>
+
+          <article class="card receipt" id="total-card" hidden>
+            <p class="card-label">Total spent this month</p>
+            <div class="allowance-value">
+              <span class="currency">RM</span><span id="total-spent">0.00</span>
+            </div>
+            <div class="split-bars" id="total-split"></div>
+            <div class="allowance-meta">
+              <span id="total-daily">—</span>
+              <span id="total-capital">—</span>
+            </div>
+            <div class="stamp-row">
+              <span class="stamp chip">💵 Income <b id="total-income">RM 0</b></span>
+              <span class="stamp chip" id="total-net">—</span>
             </div>
           </article>
 
@@ -255,6 +276,9 @@
       <div class="sheet-stat"><span>Total spent</span><b id="sheet-total">RM 0.00</b></div>
       <div class="sheet-stat"><span>Transactions</span><b id="sheet-count">0</b></div>
       <div class="sheet-stat"><span>Average cost</span><b id="sheet-avg">RM 0.00</b></div>
+    </div>
+    <div class="sheet-chart-wrap" id="sheet-chart-wrap" style="display:none">
+      <canvas id="sheet-chart"></canvas>
     </div>
     <div class="sheet-list" id="sheet-list"></div>
   </section>
