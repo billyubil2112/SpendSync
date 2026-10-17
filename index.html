@@ -3,9 +3,9 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <meta name="theme-color" content="#0f0b24" />
+  <meta name="theme-color" content="#f5efe3" />
   <title>SpendSync · Budget Tracker</title>
-  <meta name="description" content="SpendSync — a budget tracker with daily pace, capital cost awareness, saving pots and a Money Cat." />
+  <meta name="description" content="SpendSync — a daily pace budget tracker with capital cost awareness, saving pots and a Money Cat." />
   <link rel="manifest" href="manifest.json" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -16,19 +16,33 @@
   <link rel="icon" type="image/svg+xml" href="favicon.svg" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
   <!-- Loading splash -->
   <div id="splash" class="splash">
     <div class="splash-card">
-      <div class="logo-big"><svg width="72" height="72" viewBox="0 0 100 100" style="vertical-align:middle"><rect width="100" height="100" rx="22" fill="#F7B733"/><g><rect x="29" y="25" width="30" height="22" rx="5" fill="#fff" opacity="0.55"/><rect x="23" y="29" width="55" height="42" rx="8" fill="#fff"/></g><rect x="29" y="29" width="55" height="14" rx="5" fill="#F2A00C"/><rect x="66" y="47" width="9" height="9" rx="4.5" fill="#E86A17"/><rect x="29" y="54" width="24" height="5" rx="2.5" fill="#F2A00C"/></svg></div>
+      <div class="logo-big"><svg width="72" height="72" viewBox="0 0 100 100"><rect x="1.5" y="1.5" width="97" height="97" rx="20" fill="#f7b733" stroke="#201a12" stroke-width="3"/><g><rect x="29" y="25" width="30" height="22" rx="5" fill="#fff" opacity="0.55"/><rect x="23" y="29" width="55" height="42" rx="8" fill="#fff" stroke="#201a12" stroke-width="2.5"/></g><rect x="29" y="29" width="55" height="14" rx="5" fill="#f2a00c"/><rect x="66" y="47" width="9" height="9" rx="4.5" fill="#e86a17"/><rect x="29" y="54" width="24" height="5" rx="2.5" fill="#f2a00c"/></svg></div>
       <h1>SpendSync</h1>
       <div class="loader"></div>
       <p id="splash-msg">Waking up your money…</p>
     </div>
   </div>
+
+  <!-- Desktop topbar -->
+  <header class="topbar" id="topbar">
+    <div class="topbar-brand">
+      <svg width="26" height="26" viewBox="0 0 100 100"><rect x="1.5" y="1.5" width="97" height="97" rx="20" fill="#f7b733" stroke="#201a12" stroke-width="3"/><rect x="23" y="29" width="55" height="42" rx="8" fill="#fff" stroke="#201a12" stroke-width="2.5"/><rect x="29" y="29" width="55" height="14" rx="5" fill="#f2a00c"/></svg>
+      <b>SpendSync</b>
+    </div>
+    <nav class="topbar-tabs" aria-label="Main navigation">
+      <button class="toptab active" data-tab="home">Home</button>
+      <button class="toptab" data-tab="analytics">Analytics</button>
+      <button class="toptab" data-tab="budget">Budget &amp; play</button>
+    </nav>
+    <button id="sound-btn-top" class="chip-btn" aria-label="Toggle sound">🔊</button>
+  </header>
 
   <div id="app" class="app" style="display:none">
 
@@ -37,7 +51,7 @@
       <header class="page-head">
         <div>
           <p class="eyebrow" id="home-month">—</p>
-          <h1>Good evening, Billy</h1>
+          <h1>Daily pace</h1>
         </div>
         <div class="month-nav" role="group" aria-label="Month navigation">
           <button id="home-prev" class="nav-arrow" aria-label="Previous month">‹</button>
@@ -45,33 +59,50 @@
         </div>
       </header>
 
-      <article class="card allowance-card">
-        <p class="card-label">Remaining Daily Allowance</p>
-        <div class="allowance-value">
-          <span class="currency">RM</span><span id="home-allowance">0.00</span>
-        </div>
-        <div class="pace-track" aria-hidden="true"><i id="home-pace-fill"></i></div>
-        <div class="allowance-meta">
-          <span id="home-used">—</span>
-          <span id="home-left">—</span>
-        </div>
-        <div class="streak-row" id="streak-row">
-          <span class="streak-chip" id="streak-chip">🔥 <b id="streak-num">0</b> days on pace</span>
-          <span class="streak-chip" id="capital-chip">🏦 <b id="capital-amt">RM 0</b> capital this month</span>
-        </div>
-      </article>
+      <div class="home-grid">
+        <div class="col">
+          <article class="card receipt allowance-card">
+            <p class="card-label">Remaining daily allowance</p>
+            <div class="allowance-value">
+              <span class="currency">RM</span><span id="home-allowance">0.00</span>
+            </div>
+            <div class="pace-track" aria-hidden="true"><i id="home-pace-fill"></i></div>
+            <div class="allowance-meta">
+              <span id="home-used">—</span>
+              <span id="home-left">—</span>
+            </div>
+            <div class="stamp-row">
+              <span class="stamp chip" id="streak-chip">🔥 <b id="streak-num">0</b> days on pace</span>
+              <span class="stamp chip">🏦 <b id="capital-amt">RM 0</b> capital</span>
+            </div>
+          </article>
 
-      <div class="section-row">
-        <h2>Today</h2>
-        <span class="section-count" id="home-count">—</span>
-      </div>
-      <div id="home-list" class="txn-list"></div>
+          <div class="card period-card">
+            <div class="period-pills" role="tablist" aria-label="Period">
+              <button class="pill active" data-period="day">Today</button>
+              <button class="pill" data-period="week">This week</button>
+              <button class="pill" data-period="month">This month</button>
+            </div>
+            <div class="period-readout" id="period-readout">—</div>
+          </div>
+        </div>
 
-      <div class="section-row" style="margin-top:26px">
-        <h2>This Month</h2>
-        <button id="add-expense-btn" class="ghost-btn small">＋ Add expense</button>
+        <div class="col">
+          <div class="section-row">
+            <h2>Today</h2>
+            <span class="section-count" id="home-count">—</span>
+          </div>
+          <div id="home-list" class="txn-list"></div>
+
+          <div class="section-row" style="margin-top:26px">
+            <h2>Daily log</h2>
+            <span class="section-count" id="log-count">—</span>
+          </div>
+          <div id="daily-log" class="log-list"></div>
+
+          <button id="add-expense-btn" class="primary-btn wide">＋ Add expense</button>
+        </div>
       </div>
-      <div id="month-list" class="txn-list"></div>
     </section>
 
     <!-- ============ ANALYTICS ============ -->
@@ -83,27 +114,34 @@
         </div>
       </header>
 
-      <div class="section-row">
-        <h2>Categories</h2>
-        <span class="section-hint">Tap to drill down</span>
+      <div class="analytics-grid">
+        <div class="col">
+          <div class="section-row">
+            <h2>Categories</h2>
+            <span class="section-hint">Tap to drill down</span>
+          </div>
+          <div id="category-grid" class="category-grid"></div>
+        </div>
+        <div class="col">
+          <article class="card">
+            <p class="card-label">Spending by category</p>
+            <div class="chart-wrap"><canvas id="pie-chart"></canvas></div>
+            <div id="pie-empty" class="placeholder-note" style="display:none">No spending yet this month 🎉</div>
+          </article>
+        </div>
+        <div class="col wide">
+          <article class="card">
+            <p class="card-label">Daily trend</p>
+            <div class="chart-wrap"><canvas id="bar-chart"></canvas></div>
+          </article>
+        </div>
+        <div class="col wide">
+          <div class="section-row">
+            <h2>Cashflow</h2>
+          </div>
+          <div id="cashflow-grid" class="cashflow-grid"></div>
+        </div>
       </div>
-      <div id="category-grid" class="category-grid"></div>
-
-      <article class="card">
-        <p class="card-label">Spending by category</p>
-        <div class="chart-wrap"><canvas id="pie-chart"></canvas></div>
-        <div id="pie-empty" class="placeholder-note" style="display:none">No spending yet this month 🎉</div>
-      </article>
-
-      <article class="card">
-        <p class="card-label">Daily trend</p>
-        <div class="chart-wrap"><canvas id="bar-chart"></canvas></div>
-      </article>
-
-      <div class="section-row">
-        <h2>Cashflow</h2>
-      </div>
-      <div id="cashflow-grid" class="cashflow-grid"></div>
     </section>
 
     <!-- ============ BUDGET / SETTINGS ============ -->
@@ -115,78 +153,89 @@
         </div>
       </header>
 
-      <article class="card setting-card">
-        <div class="setting-head">
-          <p class="card-label">Monthly Income</p>
-          <button id="edit-income" class="ghost-btn small">💵 Manage income</button>
-        </div>
-        <div class="setting-value" id="budget-income">RM 0.00</div>
-        <div class="setting-sub" id="income-line">Add income to see net savings.</div>
-      </article>
-
-      <article class="card setting-card">
-        <div class="setting-head">
-          <p class="card-label">Fixed Monthly Budget</p>
-          <button id="edit-budget" class="ghost-btn small">✎ Edit budget</button>
-        </div>
-        <div class="setting-value" id="budget-fixed">Not set</div>
-        <div class="setting-sub" id="budget-sub">—</div>
-      </article>
-
-      <article class="card setting-card">
-        <div class="setting-head">
-          <p class="card-label">Saving Pots</p>
-          <button id="add-pot-btn" class="ghost-btn small">＋ New pot</button>
-        </div>
-        <div id="pot-grid" class="pot-grid"></div>
-      </article>
-
-      <article class="card gamify-card">
-        <div class="cat-row" id="cat-row" role="button" tabindex="0" aria-label="Tap to pet your cat">
-          <div class="cat-svg-wrap" id="cat-svg"></div>
-          <div class="cat-info">
-            <div class="cat-head-row">
-              <b id="cat-tag">Lil Furball</b>
-              <span class="cat-lv" id="cat-lv">LV 1/5</span>
+      <div class="budget-grid">
+        <div class="col">
+          <article class="card setting-card">
+            <div class="setting-head">
+              <p class="card-label">Monthly Income</p>
+              <button id="edit-income" class="chip-btn">💵 Manage income</button>
             </div>
-            <div class="cat-line" id="cat-line">…</div>
-            <div class="cat-xpbar"><i id="cat-xp-fill"></i></div>
-            <div class="cat-meta" id="cat-meta">…</div>
-          </div>
-        </div>
-        <div class="section-row" style="margin:18px 2px 12px">
-          <h2>Achievements</h2>
-          <span class="section-count" id="ach-count">0 / 0</span>
-        </div>
-        <div id="ach-shelf" class="ach-shelf"></div>
-      </article>
+            <div class="setting-value" id="budget-income">RM 0.00</div>
+            <div class="setting-sub" id="income-line">Add income to see net savings.</div>
+          </article>
 
-      <article class="card setting-card">
-        <p class="card-label">Data &amp; sound</p>
-        <div class="data-row">
-          <button id="download-csv" class="ghost-btn small">⬇ CSV</button>
-          <button id="download-report" class="ghost-btn small">⬇ Report</button>
-          <button id="backup-btn" class="ghost-btn small">💾 Backup</button>
-          <button id="restore-btn" class="ghost-btn small">↩ Restore</button>
-          <input type="file" id="restore-file" accept=".json,application/json" style="display:none" />
-          <button id="sound-btn" class="ghost-btn small" aria-label="Toggle sound">🔊</button>
+          <article class="card setting-card">
+            <div class="setting-head">
+              <p class="card-label">Fixed Monthly Budget</p>
+              <button id="edit-budget" class="chip-btn">✎ Edit budget</button>
+            </div>
+            <div class="setting-value" id="budget-fixed">Not set</div>
+            <div class="setting-sub" id="budget-sub">—</div>
+          </article>
+
+          <article class="card setting-card">
+            <p class="card-label">Data &amp; sound</p>
+            <div class="data-row">
+              <button id="download-csv" class="chip-btn">⬇ CSV</button>
+              <button id="download-report" class="chip-btn">⬇ Report</button>
+              <button id="backup-btn" class="chip-btn">💾 Backup</button>
+              <button id="restore-btn" class="chip-btn">↩ Restore</button>
+              <input type="file" id="restore-file" accept=".json,application/json" style="display:none" />
+              <button id="sound-btn" class="chip-btn" aria-label="Toggle sound">🔊</button>
+            </div>
+          </article>
         </div>
-      </article>
+
+        <div class="col">
+          <article class="card setting-card">
+            <div class="setting-head">
+              <p class="card-label">Saving Pots</p>
+              <button id="add-pot-btn" class="chip-btn">＋ New pot</button>
+            </div>
+            <div id="pot-grid" class="pot-grid"></div>
+          </article>
+        </div>
+
+        <div class="col">
+          <article class="card gamify-card">
+            <div class="cat-row" id="cat-row" role="button" tabindex="0" aria-label="Tap to pet your cat">
+              <div class="cat-svg-wrap" id="cat-svg"></div>
+              <div class="cat-info">
+                <div class="cat-head-row">
+                  <b id="cat-tag">Lil Furball</b>
+                  <span class="cat-lv" id="cat-lv">LV 1/5</span>
+                </div>
+                <div class="cat-line" id="cat-line">…</div>
+                <div class="cat-xpbar"><i id="cat-xp-fill"></i></div>
+                <div class="cat-meta" id="cat-meta">…</div>
+              </div>
+            </div>
+          </article>
+
+          <article class="card setting-card">
+            <div class="section-row">
+              <h2>Achievements</h2>
+              <span class="section-count" id="ach-count">0 / 0</span>
+            </div>
+            <div id="ach-shelf" class="ach-shelf"></div>
+          </article>
+        </div>
+      </div>
     </section>
   </div>
 
-  <!-- ============ BOTTOM NAV ============ -->
+  <!-- ============ BOTTOM NAV (mobile/tablet) ============ -->
   <nav class="bottom-nav" role="tablist" aria-label="Main navigation">
     <button id="nav-home" class="nav-item active" role="tab" aria-selected="true" aria-controls="tab-home" data-tab="home">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/><path d="M9 21v-6h6v6"/></svg>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/><path d="M9 21v-6h6v6"/></svg>
       <span>Home</span>
     </button>
     <button id="nav-analytics" class="nav-item" role="tab" aria-selected="false" aria-controls="tab-analytics" data-tab="analytics">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20V10"/><path d="M10 20V4"/><path d="M16 20v-7"/><path d="M22 20H2"/></svg>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20V10"/><path d="M10 20V4"/><path d="M16 20v-7"/><path d="M22 20H2"/></svg>
       <span>Analytics</span>
     </button>
     <button id="nav-budget" class="nav-item" role="tab" aria-selected="false" aria-controls="tab-budget" data-tab="budget">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="6" width="18" height="15" rx="3"/><path d="M3 10h18"/><path d="M7 15h4"/><path d="M15.5 14.5l-3 3 3 3 3-3-3-3Z"/></svg>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="6" width="18" height="15" rx="3"/><path d="M3 10h18"/><path d="M7 15h4"/><path d="M15.5 14.5l-3 3 3 3 3-3-3-3Z"/></svg>
       <span>Budget</span>
     </button>
   </nav>
@@ -225,6 +274,13 @@
           <span>Amount (RM)</span>
           <input type="number" id="expense-amount" min="0.01" step="0.01" placeholder="0.00" required />
         </label>
+        <div class="quick-chips">
+          <span>Quick:</span>
+          <button type="button" class="chip-btn" data-amount="5">5</button>
+          <button type="button" class="chip-btn" data-amount="10">10</button>
+          <button type="button" class="chip-btn" data-amount="15">15</button>
+          <button type="button" class="chip-btn" data-amount="20">20</button>
+        </div>
         <label class="field">
           <span>Category</span>
           <select id="expense-category"></select>
@@ -277,11 +333,11 @@
         </label>
         <div class="quick-chips">
           <span>Quick set:</span>
-          <button type="button" class="ghost-btn small" data-amount="500">500</button>
-          <button type="button" class="ghost-btn small" data-amount="1000">1k</button>
-          <button type="button" class="ghost-btn small" data-amount="1500">1.5k</button>
-          <button type="button" class="ghost-btn small" data-amount="2000">2k</button>
-          <button type="button" class="ghost-btn small" data-amount="3000">3k</button>
+          <button type="button" class="chip-btn" data-amount="500">500</button>
+          <button type="button" class="chip-btn" data-amount="1000">1k</button>
+          <button type="button" class="chip-btn" data-amount="1500">1.5k</button>
+          <button type="button" class="chip-btn" data-amount="2000">2k</button>
+          <button type="button" class="chip-btn" data-amount="3000">3k</button>
         </div>
         <div class="modal-actions">
           <button type="button" class="ghost-btn" data-close="budget-modal">Cancel</button>

@@ -13,6 +13,7 @@ const RATE_LABELS = ['', 'regret', 'meh', 'eh, ok', 'worth it', 'loved it'];
 
 let view = 'home';
 let dashMonth = monthKey(today());
+let period = 'day';
 let fundPotId = null;
 let lastDeleted = null;
 let lastDeletedType = null;
@@ -54,7 +55,15 @@ const sfx = {
 };
 
 function updateSoundBtn() {
-  $('#sound-btn').textContent = soundOn ? '🔊 On' : '🔇 Off';
+  $('#sound-btn').textContent = soundOn ? '🔊' : '🔇';
+  $('#sound-btn-top').textContent = soundOn ? '🔊' : '🔇';
+}
+
+function toggleSound() {
+  soundOn = !soundOn;
+  localStorage.setItem('ss_sound', soundOn ? 'on' : 'off');
+  updateSoundBtn();
+  if (soundOn) sfx.success();
 }
 
 /* ============================== CONFETTI ============================== */
@@ -66,7 +75,7 @@ function burst(scale) {
     spread: 75,
     startVelocity: 42,
     origin: { x: 0.5, y: 0.7 },
-    colors: ['#8b7bff', '#2dd4bf', '#f7b733', '#ff5c7a', '#ffffff']
+    colors: ['#f7b733', '#e86a17', '#2e9e5b', '#c93a2b', '#201a12']
   });
 }
 
@@ -201,21 +210,21 @@ function renderHome() {
   const el = $('#home-allowance');
   if (budget > 0) {
     el.textContent = Math.max(0, remaining).toFixed(2);
-    el.style.color = remaining < 0 ? 'var(--danger)' : 'var(--text)';
+    el.style.color = remaining < 0 ? 'var(--red)' : 'var(--ink)';
     const used = dailyAllow - remaining;
     const pct = Math.min(100, Math.max(0, (used / dailyAllow) * 100));
     const fill = $('#home-pace-fill');
     fill.style.width = pct + '%';
     fill.style.background = pct > 100
-      ? 'linear-gradient(90deg, #ff5c7a, #ff2d55)'
+      ? 'linear-gradient(90deg, #c93a2b, #e8593f)'
       : pct > 75
-        ? 'linear-gradient(90deg, #ffc24b, #ff9f43)'
-        : 'linear-gradient(90deg, var(--cyan), var(--accent))';
+        ? 'linear-gradient(90deg, #e8a20a, #e86a17)'
+        : 'linear-gradient(90deg, #2e9e5b, #f7b733)';
     $('#home-used').textContent = fmt(used) + ' used today';
     $('#home-left').textContent = remaining >= 0 ? fmt(remaining) + ' left today' : 'Over by ' + fmt(-remaining);
   } else {
     el.textContent = '0.00';
-    el.style.color = 'var(--faint)';
+    el.style.color = 'var(--ink-faint)';
     $('#home-pace-fill').style.width = '0%';
     $('#home-used').textContent = 'Set a budget to start pacing';
     $('#home-left').textContent = 'Budget tab → Fixed Monthly Budget';
@@ -224,17 +233,12 @@ function renderHome() {
   // Streak chip
   const streak = isCur ? onPaceStreak(key) : 0;
   const streakRow = $('#streak-row');
-  if (budget > 0 && isCur) {
-    streakRow.style.display = 'flex';
-    $('#streak-num').textContent = streak;
-    $('#streak-chip').classList.toggle('hot', streak >= 5);
-    $('#streak-chip').classList.toggle('ice', streak === 0);
-    $('#capital-amt').textContent = fmt(capitalSpent);
-  } else {
-    streakRow.style.display = budget > 0 ? 'flex' : 'none';
-    $('#streak-num').textContent = '—';
-    $('#capital-amt').textContent = fmt(capitalSpent);
-  }
+  const streakChip = $('#streak-chip');
+  streakChip.classList.toggle('hot', streak >= 5);
+  streakChip.classList.toggle('ok', streak > 0 && streak < 5);
+  streakChip.classList.toggle('over', streak === 0 && budget > 0);
+  $('#streak-num').textContent = streak;
+  $('#capital-amt').textContent = fmt(capitalSpent);
 
   // Today list
   const todayAll = state.expenses.filter((t) => t.date === todayStr);
@@ -243,11 +247,87 @@ function renderHome() {
     ? todayAll.map(txnItem).join('')
     : '<p class="txn-empty">Nothing today yet. Enjoy the quiet.</p>';
 
-  // Month list
-  const sorted = [...monthTxns].sort((a, b) => (b.date < a.date ? -1 : b.date > a.date ? 1 : 0));
-  $('#month-list').innerHTML = sorted.length
-    ? sorted.map((t) => txnItem(t, true)).join('')
-    : '<p class="txn-empty">No transactions in ' + monthLabel(key) + '.</p>';
+  // Daily log (grouped by date)
+  renderDailyLog(key);
+
+  renderPeriod();
+}
+
+function renderDailyLog(key) {
+  const monthTxns = expensesInMonth(key);
+  const days = {};
+  monthTxns.forEach((t) => {
+    if (!days[t.date]) days[t.date] = [];
+    days[t.date].push(t);
+  });
+  const dates = Object.keys(days).sort((a, b) => (b < a ? -1 : 1));
+  const dailyAllow = state.budgets[key] > 0 ? state.budgets[key] / daysInMonth(key) : 0;
+  const el = $('#daily-log');
+  $('#log-count').textContent = dates.length + ' day' + (dates.length === 1 ? '' : 's');
+
+  if (dates.length === 0) {
+    el.innerHTML = '<p class="txn-empty">No spending in ' + monthLabel(key) + ' yet.</p>';
+    return;
+  }
+  el.innerHTML = dates.map((d) => {
+    const items = days[d].sort((a, b) => (b.amount < a.amount ? -1 : a.amount < b.amount ? 1 : 0));
+    const total = sum(items);
+    const over = dailyAllow > 0 && total > dailyAllow;
+    const rows = items.map((t) => {
+      const flags = [
+        t.repeat ? '<span style="font-family:var(--mono);font-size:0.62rem;color:var(--ink-soft)">🔁</span>' : '',
+        t.rate ? `<span style="font-size:0.75rem">${RATE_EMOJIS[t.rate]}</span>` : ''
+      ].join(' ');
+      return `<div class="log-item">
+        <div class="txn-ico">${CAT_EMOJI[t.category] || '📦'}</div>
+        <div class="txn-main">
+          <div class="txn-name">${esc(t.name)}${t.budgetImpact === 'capital' ? ' <span style="font-family:var(--mono);font-size:0.62rem;color:var(--amber-deep)">CAP</span>' : ''}</div>
+          <div class="txn-sub">${esc(t.category)} ${flags}</div>
+        </div>
+        <div class="txn-amt ${t.budgetImpact}">${fmt(t.amount)}</div>
+        <div class="txn-actions">
+          <button class="chip-btn" data-act="edit" data-id="${t.id}" aria-label="Edit">✎</button>
+          <button class="chip-btn" data-act="del" data-id="${t.id}" aria-label="Delete">🗑</button>
+        </div>
+      </div>`;
+    }).join('');
+    return `<div class="log-day">
+      <div class="log-head">
+        <span class="log-date">${weekday(d)} · ${fmtDate(d)}</span>
+        <span class="log-status ${over ? 'over' : 'ok'}" style="color:${over ? 'var(--red)' : 'var(--green)'}">${over ? '▲ over pace' : 'ok'}</span>
+        <span class="log-total">${fmt(total)}</span>
+      </div>
+      <div class="log-items">${rows}</div>
+    </div>`;
+  }).join('');
+}
+
+function renderPeriod() {
+  const key = dashMonth;
+  const budget = state.budgets[key] || 0;
+  const days = daysInMonth(key);
+  let spent, allow, label;
+  if (period === 'day') {
+    spent = sum(expensesInRange(iso(today()), iso(today())).filter((e) => e.budgetImpact === 'daily'));
+    allow = budget > 0 ? budget / days : 0;
+    label = 'today';
+  } else if (period === 'week') {
+    const [a, b] = weekRange();
+    spent = sum(expensesInRange(a, b).filter((e) => e.budgetImpact === 'daily'));
+    allow = budget > 0 ? budget / (days / 7) : 0;
+    label = 'this week';
+  } else {
+    spent = sum(expensesInMonth(key).filter((e) => e.budgetImpact === 'daily'));
+    allow = budget;
+    label = 'this month';
+  }
+  const over = allow > 0 && spent > allow;
+  const el = $('#period-readout');
+  if (budget > 0) {
+    el.innerHTML = `Spent <b>${fmt(spent)}</b> ${label} · allowance <b>${fmt(allow)}</b>${over ? ' <span class="warn">⚠️ over!</span>' : ''}`;
+  } else {
+    el.innerHTML = 'Set a budget to see your daily pace. Capital costs (bills, tuition) are tracked separately and never break the pace.';
+  }
 }
 
 function txnItem(t, withActions) {
@@ -311,15 +391,15 @@ function renderAnalytics() {
         datasets: [{
           data: groups.map((g) => g.total),
           backgroundColor: groups.map((g) => cat(g.category).color),
-          borderColor: 'rgba(15,11,36,0.9)',
-          borderWidth: 3,
+          borderColor: '#f5efe3',
+          borderWidth: 2,
           hoverOffset: 8
         }]
       },
       options: {
         responsive: true, maintainAspectRatio: false, cutout: '64%',
         plugins: {
-          legend: { position: 'bottom', labels: { color: 'rgba(242,240,255,0.8)', font: { family: 'Plus Jakarta Sans', size: 11 }, boxWidth: 10, padding: 10 } }
+          legend: { position: 'bottom', labels: { color: '#57503f', font: { family: 'Space Grotesk', size: 11 }, boxWidth: 10, padding: 10 } }
         }
       }
     });
@@ -339,8 +419,10 @@ function renderAnalytics() {
       labels: daily.map((_, i) => i + 1),
       datasets: [{
         data: daily,
-        backgroundColor: daily.map((v) => (v > 0 ? 'rgba(139,123,255,0.75)' : 'rgba(255,255,255,0.05)')),
-        borderRadius: 4,
+        backgroundColor: daily.map((v) => (v > 0 ? 'rgba(247,183,51,0.9)' : 'rgba(32,26,18,0.06)')),
+        borderColor: daily.map((v) => (v > 0 ? '#201a12' : 'transparent')),
+        borderWidth: daily.map((v) => (v > 0 ? 1.5 : 0)),
+        borderRadius: 3,
         borderSkipped: false
       }]
     },
@@ -348,8 +430,8 @@ function renderAnalytics() {
       responsive: true, maintainAspectRatio: false,
       plugins: { legend: { display: false }, tooltip: { callbacks: { label: (c) => fmt(c.parsed.y) } } },
       scales: {
-        x: { grid: { display: false }, ticks: { color: 'rgba(242,240,255,0.4)', maxTicksLimit: 10, font: { size: 10 } } },
-        y: { grid: { color: 'rgba(255,255,255,0.06)' }, ticks: { color: 'rgba(242,240,255,0.5)', font: { size: 10 }, callback: (v) => 'RM' + v } }
+        x: { grid: { display: false }, ticks: { color: '#8a8070', maxTicksLimit: 10, font: { family: 'Space Mono', size: 9 } } },
+        y: { grid: { color: 'rgba(32,26,18,0.1)' }, ticks: { color: '#57503f', font: { family: 'Space Mono', size: 10 }, callback: (v) => 'RM' + v } }
       }
     }
   });
@@ -387,7 +469,7 @@ function renderBudget() {
   $('#income-line').textContent = income > 0
     ? 'Income ' + fmt(income) + ' · ' + (net >= 0 ? 'saved ' + fmt(net) : 'overspent ' + fmt(-net)) + ' (cashflow)'
     : 'Add income to see net savings.';
-  $('#income-line').style.color = income > 0 ? (net >= 0 ? 'var(--cyan)' : 'var(--danger)') : '';
+  $('#income-line').style.color = income > 0 ? (net >= 0 ? 'var(--green)' : 'var(--red)') : '';
 
   // Pots
   const grid = $('#pot-grid');
@@ -453,10 +535,10 @@ function checkAchievements() {
 
 function switchTab(name) {
   view = name;
-  $$('.nav-item').forEach((b) => {
+  $$('.nav-item, .toptab').forEach((b) => {
     const active = b.dataset.tab === name;
     b.classList.toggle('active', active);
-    b.setAttribute('aria-selected', active ? 'true' : 'false');
+    if (b.classList.contains('nav-item')) b.setAttribute('aria-selected', active ? 'true' : 'false');
   });
   $$('.tab-view').forEach((v) => {
     const active = v.id === 'tab-' + name;
@@ -861,7 +943,7 @@ function downloadReport() {
 /* ============================== EVENTS ============================== */
 
 function setupEvents() {
-  $$('.nav-item').forEach((b) => b.addEventListener('click', () => switchTab(b.dataset.tab)));
+  $$('.nav-item, .toptab').forEach((b) => b.addEventListener('click', () => switchTab(b.dataset.tab)));
   $('#home-prev').addEventListener('click', () => navMonth(-1));
   $('#home-next').addEventListener('click', () => navMonth(1));
 
@@ -870,7 +952,16 @@ function setupEvents() {
   $('#edit-income').addEventListener('click', openIncomeModal);
   $('#add-pot-btn').addEventListener('click', () => openPotModal(null));
 
-  $('#month-list').addEventListener('click', (e) => {
+  $$('.period-pills .pill').forEach((p) => {
+    p.addEventListener('click', () => {
+      $$('.period-pills .pill').forEach((x) => x.classList.toggle('active', x === p));
+      period = p.dataset.period;
+      renderPeriod();
+      sfx.click();
+    });
+  });
+
+  $('#daily-log').addEventListener('click', (e) => {
     const btn = e.target.closest('[data-act]');
     if (!btn) return;
     const exp = state.expenses.find((x) => x.id === btn.dataset.id);
@@ -911,7 +1002,7 @@ function setupEvents() {
   $$('.rate-btn').forEach((b) => b.addEventListener('click', () => pickRate(Number(b.dataset.rate))));
   $('#rate-clear').addEventListener('click', () => pickRate(0));
 
-  $$('.quick-chips .ghost-btn').forEach((c) => {
+  $$('.quick-chips .chip-btn').forEach((c) => {
     c.addEventListener('click', () => {
       const input = c.closest('.modal-card').querySelector('input[type="number"]');
       if (input) input.value = c.dataset.amount;
@@ -954,12 +1045,8 @@ function setupEvents() {
   });
   $('#restore-file').addEventListener('change', restoreData);
 
-  $('#sound-btn').addEventListener('click', () => {
-    soundOn = !soundOn;
-    localStorage.setItem('ss_sound', soundOn ? 'on' : 'off');
-    updateSoundBtn();
-    if (soundOn) sfx.success();
-  });
+  $('#sound-btn').addEventListener('click', toggleSound);
+  $('#sound-btn-top').addEventListener('click', toggleSound);
 
   document.querySelectorAll('[data-close]').forEach((b) => {
     b.addEventListener('click', () => closeModal('#' + b.dataset.close));
