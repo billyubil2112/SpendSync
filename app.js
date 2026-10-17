@@ -162,23 +162,67 @@ function catSVG(lv, mood) {
   <ellipse cx="138" cy="26" rx="2.6" ry="5" fill="${inner}" transform="rotate(-28 138 26)" opacity="0.65"/></svg>`;
 }
 
+const MEOWS = ['Meow!', 'Purr purr…', 'Mrow~', 'Prrr!', 'Nyaa~', 'Meow meow!', 'Purrrr 🐾'];
+
+// Randomized "petted" reaction: trick spin, particles, mini confetti at the cat.
 function petReaction(svgEl) {
-  svgEl.classList.remove('petted');
+  svgEl.classList.remove('petted', 'petted-flip', 'petted-bounce');
   void svgEl.offsetWidth;
-  svgEl.classList.add('petted');
+  const tricks = ['petted-flip', 'petted-bounce', 'petted'];
+  svgEl.classList.add(tricks[Math.floor(Math.random() * tricks.length)]);
   if (svgEl._pettedTimer) clearTimeout(svgEl._pettedTimer);
-  svgEl._pettedTimer = setTimeout(() => svgEl.classList.remove('petted'), 750);
-  const hearts = ['❤️', '🐟', '⭐', '💛'];
+  svgEl._pettedTimer = setTimeout(() => {
+    svgEl.classList.remove('petted', 'petted-flip', 'petted-bounce');
+  }, 1200);
+
+  // Host particles on the row so re-rendering the svg doesn't wipe them.
+  const host = svgEl.parentElement && svgEl.parentElement.classList.contains('cat-row')
+    ? svgEl.parentElement
+    : svgEl;
+
+  // Purr ring
+  const ring = document.createElement('span');
+  ring.className = 'pet-ring';
+  host.appendChild(ring);
+  setTimeout(() => ring.remove(), 900);
+
+  // Particles: hearts up, stars flying out
+  const hearts = ['❤️', '💛', '🐟', '⭐'];
   for (let i = 0; i < 4; i++) {
     const h = document.createElement('span');
     h.className = 'pet-heart';
     h.textContent = hearts[Math.floor(Math.random() * hearts.length)];
-    h.style.left = 20 + Math.random() * 60 + '%';
-    h.style.bottom = 24 + Math.random() * 40 + '%';
-    h.style.animationDelay = Math.random() * 0.3 + 's';
-    h.style.fontSize = 0.8 + Math.random() * 0.7 + 'rem';
-    svgEl.appendChild(h);
-    setTimeout(() => h.remove(), 1500);
+    h.style.left = 15 + Math.random() * 65 + '%';
+    h.style.bottom = 20 + Math.random() * 35 + '%';
+    h.style.animationDelay = Math.random() * 0.25 + 's';
+    h.style.fontSize = 0.7 + Math.random() * 0.8 + 'rem';
+    host.appendChild(h);
+    setTimeout(() => h.remove(), 1600);
+  }
+  for (let i = 0; i < 5; i++) {
+    const s = document.createElement('span');
+    s.className = 'pet-star';
+    s.style.left = 40 + Math.random() * 20 + '%';
+    s.style.top = 30 + Math.random() * 30 + '%';
+    s.style.setProperty('--sx', (Math.random() * 90 - 45) + 'px');
+    s.style.setProperty('--sy', (-20 - Math.random() * 60) + 'px');
+    s.style.animationDelay = Math.random() * 0.2 + 's';
+    host.appendChild(s);
+    setTimeout(() => s.remove(), 1300);
+  }
+
+  // Mini confetti at the cat's position
+  if (typeof confetti === 'function') {
+    const rect = svgEl.getBoundingClientRect();
+    confetti({
+      particleCount: 24,
+      spread: 55,
+      startVelocity: 26,
+      scalar: 0.7,
+      ticks: 90,
+      origin: { x: (rect.left + rect.width / 2) / window.innerWidth, y: (rect.top + rect.height / 2) / window.innerHeight },
+      colors: ['#c9971f', '#2e8b57', '#c4503d', '#191917']
+    });
   }
 }
 
@@ -286,6 +330,19 @@ function renderHome() {
   renderDailyLog(key);
 
   renderPeriod();
+
+  renderHomeCat(key);
+}
+
+function renderHomeCat(key) {
+  const info = petXpInfo();
+  const mood = petMood(key);
+  $('#home-cat-svg').innerHTML = catSVG(info.lv, mood);
+  $('#home-cat-tag').textContent = info.tag;
+  $('#home-cat-lv').textContent = 'LV ' + (info.lv + 1) + '/' + PET_LEVELS.length;
+  $('#home-cat-line').textContent = info.line;
+  $('#home-cat-xp-fill').style.width = info.pct + '%';
+  $('#home-cat-meta').textContent = petTip(mood);
 }
 
 function renderDailyLog(key) {
@@ -1177,12 +1234,26 @@ function setupEvents() {
     addPetXp(2);
     renderBudget();
     sfx.coin();
-    toast('Duit purrs (+2 XP)', '🐱');
+    toast(MEOWS[Math.floor(Math.random() * MEOWS.length)] + ' (+2 XP)', '🐱');
   });
   $('#cat-row').addEventListener('keydown', (e) => {
     if (e.key === 'Enter' || e.key === ' ') {
       e.preventDefault();
       $('#cat-row').click();
+    }
+  });
+
+  $('#home-cat-row').addEventListener('click', () => {
+    petReaction($('#home-cat-svg'));
+    addPetXp(2);
+    renderHome();
+    sfx.coin();
+    toast(MEOWS[Math.floor(Math.random() * MEOWS.length)] + ' (+2 XP)', '🐱');
+  });
+  $('#home-cat-row').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      $('#home-cat-row').click();
     }
   });
 
