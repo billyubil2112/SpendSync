@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#0f0b24" />
+  <title>SpendSync v2 · Budget Tracker</title>
+  <meta name="description" content="SpendSync v2 — a progressive-disclosure budget tracker with daily pace, cashflow and category drill-down." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="app">
+
+    <!-- ============ HOME ============ -->
+    <section id="tab-home" class="tab-view active" role="tabpanel" aria-labelledby="nav-home">
+      <header class="page-head">
+        <div>
+          <p class="eyebrow" id="home-month">October 2026</p>
+          <h1>Good evening, Billy</h1>
+        </div>
+        <button class="avatar" aria-label="Profile">B</button>
+      </header>
+
+      <article class="card allowance-card">
+        <p class="card-label">Remaining Daily Allowance</p>
+        <div class="allowance-value">
+          <span class="currency">RM</span><span id="home-allowance">15.00</span>
+        </div>
+        <div class="pace-track" aria-hidden="true">
+          <i id="home-pace-fill"></i>
+        </div>
+        <div class="allowance-meta">
+          <span id="home-used">RM 7.50 used today</span>
+          <span id="home-left">RM 24.00 left this week</span>
+        </div>
+      </article>
+
+      <div class="section-row">
+        <h2>Today</h2>
+        <span class="section-count" id="home-count">0 transactions</span>
+      </div>
+      <div id="home-list" class="txn-list"></div>
+    </section>
+
+    <!-- ============ ANALYTICS ============ -->
+    <section id="tab-analytics" class="tab-view" role="tabpanel" aria-labelledby="nav-analytics" hidden>
+      <header class="page-head">
+        <div>
+          <p class="eyebrow">This month</p>
+          <h1>Where it went</h1>
+        </div>
+      </header>
+
+      <div class="section-row">
+        <h2>Categories</h2>
+        <span class="section-hint">Tap to drill down</span>
+      </div>
+      <div id="category-grid" class="category-grid"></div>
+
+      <div class="card chart-placeholder">
+        <p class="card-label">Spending trend</p>
+        <div class="placeholder-bars" aria-hidden="true">
+          <i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+        </div>
+        <p class="placeholder-note">Charts land here in the next step.</p>
+      </div>
+    </section>
+
+    <!-- ============ BUDGET / SETTINGS ============ -->
+    <section id="tab-budget" class="tab-view" role="tabpanel" aria-labelledby="nav-budget" hidden>
+      <header class="page-head">
+        <div>
+          <p class="eyebrow">Settings</p>
+          <h1>Budget &amp; play</h1>
+        </div>
+      </header>
+
+      <article class="card setting-card">
+        <p class="card-label">Monthly Income</p>
+        <div class="setting-value" id="budget-income">RM 1,200.00</div>
+        <button class="ghost-btn">Edit income</button>
+      </article>
+
+      <article class="card setting-card">
+        <p class="card-label">Fixed Monthly Budget</p>
+        <div class="setting-value" id="budget-fixed">RM 800.00</div>
+        <button class="ghost-btn">Edit budget</button>
+      </article>
+
+      <article class="card gamify-card">
+        <div class="gamify-head">
+          <p class="card-label">Streak</p>
+          <span class="flame" id="budget-flame">🔥 5 days on pace</span>
+        </div>
+        <p class="gamify-note">Keep your daily spend under pace and Duit stays happy. Gamification widgets land here in the next step.</p>
+      </article>
+    </section>
+  </div>
+
+  <!-- ============ BOTTOM NAV ============ -->
+  <nav class="bottom-nav" role="tablist" aria-label="Main navigation">
+    <button id="nav-home" class="nav-item active" role="tab" aria-selected="true" aria-controls="tab-home" data-tab="home">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/><path d="M9 21v-6h6v6"/></svg>
+      <span>Home</span>
+    </button>
+    <button id="nav-analytics" class="nav-item" role="tab" aria-selected="false" aria-controls="tab-analytics" data-tab="analytics">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20V10"/><path d="M10 20V4"/><path d="M16 20v-7"/><path d="M22 20H2"/></svg>
+      <span>Analytics</span>
+    </button>
+    <button id="nav-budget" class="nav-item" role="tab" aria-selected="false" aria-controls="tab-budget" data-tab="budget">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="6" width="18" height="15" rx="3"/><path d="M3 10h18"/><path d="M7 15h4"/><path d="M15.5 14.5l-3 3 3 3 3-3-3-3Z"/></svg>
+      <span>Budget</span>
+    </button>
+  </nav>
+
+  <!-- ============ CATEGORY DRILL-DOWN SHEET ============ -->
+  <div class="sheet-backdrop" id="sheet-backdrop" hidden></div>
+  <section class="bottom-sheet" id="category-sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-title">
+    <div class="sheet-handle" aria-hidden="true"></div>
+    <header class="sheet-head">
+      <div>
+        <p class="eyebrow">Category</p>
+        <h2 id="sheet-title">—</h2>
+      </div>
+      <button class="sheet-close" id="sheet-close" aria-label="Close drill-down">✕</button>
+    </header>
+    <div class="sheet-stats">
+      <div class="sheet-stat">
+        <span>Total spent</span>
+        <b id="sheet-total">RM 0.00</b>
+      </div>
+      <div class="sheet-stat">
+        <span>Transactions</span>
+        <b id="sheet-count">0</b>
+      </div>
+      <div class="sheet-stat">
+        <span>Average cost</span>
+        <b id="sheet-avg">RM 0.00</b>
+      </div>
+    </div>
+    <div class="sheet-list" id="sheet-list"></div>
+  </section>
+
+  <script src="state.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
