@@ -320,11 +320,37 @@ function renderHome() {
   const todayAll = state.expenses.filter((t) => t.date === todayStr);
   const todayShown = paceMode ? todayAll.filter((t) => t.budgetImpact === 'daily') : todayAll;
   const hiddenToday = todayAll.length - todayShown.length;
+
+  // Income earned today
+  const earnedToday = incomeForDay(todayStr);
+  const earnedEl = $('#home-earned');
+  if (earnedToday > 0) {
+    earnedEl.hidden = false;
+    earnedEl.textContent = `＋ ${fmt(earnedToday)} earned today · daily pace net ${fmt(earnedToday - sum(todayShown))}`;
+  } else {
+    earnedEl.hidden = true;
+  }
+
+  const todayIncomes = state.incomes.filter((i) => i.date === todayStr);
+  const todayIncomeItems = todayIncomes
+    .sort((a, b) => (a.date < b.date ? -1 : 1))
+    .map((i) => `<div class="txn-item income">
+      <div class="txn-ico">${esc(i.emoji || '💰')}</div>
+      <div class="txn-main">
+        <div class="txn-name">${esc(i.name)}</div>
+        <div class="txn-sub">${i.daily ? '🛵 daily income' : 'income'}</div>
+      </div>
+      <div class="txn-amt">+${fmt(i.amount)}</div>
+    </div>`)
+    .join('');
+
   $('#home-count').textContent = todayShown.length + ' transaction' + (todayShown.length === 1 ? '' : 's') +
-    (hiddenToday > 0 ? ' · ' + hiddenToday + ' capital hidden' : '');
-  $('#home-list').innerHTML = todayShown.length
-    ? todayShown.map(txnItem).join('')
-    : '<p class="txn-empty">' + (paceMode && hiddenToday > 0 ? 'Only capital spending today. Nothing hits your daily pace. 🏦' : 'Nothing today yet. Enjoy the quiet.') + '</p>';
+    (hiddenToday > 0 ? ' · ' + hiddenToday + ' capital hidden' : '') +
+    (todayIncomes.length ? ' · ' + todayIncomes.length + ' income' : '');
+  $('#home-list').innerHTML = todayIncomeItems +
+    (todayShown.length
+      ? todayShown.map((t) => txnItem(t, true)).join('')
+      : (todayIncomes.length ? '' : '<p class="txn-empty">' + (paceMode && hiddenToday > 0 ? 'Only capital spending today. Nothing hits your daily pace. 🏦' : 'Nothing today yet. Enjoy the quiet.') + '</p>'));
 
   // Daily log (grouped by date)
   renderDailyLog(key);
@@ -421,10 +447,17 @@ function renderPeriod() {
   }
   const over = allow > 0 && spent > allow;
   const el = $('#period-readout');
+  let earned = 0;
+  if (period === 'day') earned = incomeForDay(iso(today()));
+  else if (period === 'week') {
+    const [wa, wb] = weekRange();
+    earned = sum(state.incomes.filter((i) => i.date >= wa && i.date <= wb));
+  } else earned = incomeForMonth(key);
+  const earnedStr = earned > 0 ? ` · earned <b style="color:var(--green)">${fmt(earned)}</b>` : '';
   if (budget > 0) {
-    el.innerHTML = `Spent <b>${fmt(spent)}</b> ${label} · allowance <b>${fmt(allow)}</b>${over ? ' <span class="warn">⚠️ over!</span>' : ''}`;
+    el.innerHTML = `Spent <b>${fmt(spent)}</b> ${label} · allowance <b>${fmt(allow)}</b>${earnedStr}${over ? ' <span class="warn">⚠️ over!</span>' : ''}`;
   } else {
-    el.innerHTML = 'Set a budget to see your daily pace. Capital costs (bills, tuition) are tracked separately and never break the pace.';
+    el.innerHTML = 'Set a budget to see your daily pace. Capital costs (bills, tuition) are tracked separately and never break the pace.' + earnedStr;
   }
 }
 
@@ -844,6 +877,7 @@ function openIncomeModal() {
   $('#income-amount').value = '';
   $('#income-date').value = dashMonth === monthKey(today()) ? iso(today()) : dashMonth + '-01';
   $('#income-repeat').checked = false;
+  $('#income-daily').checked = false;
   renderIncomeList();
   openModal('#income-modal');
 }
@@ -856,7 +890,7 @@ function renderIncomeList() {
         <span class="income-ico">${esc(i.emoji || '💰')}</span>
         <span class="income-main">
           <b>${esc(i.name)}</b>
-          <small>${fmtDate(i.date)}${i.repeat ? ' · 🔁 repeats monthly' : ''}</small>
+          <small>${fmtDate(i.date)}${i.daily ? ' · 🛵 daily income' : ''}${i.repeat ? ' · 🔁 repeats monthly' : ''}</small>
         </span>
         <span class="income-amt">+${fmt(i.amount)}</span>
         <button class="ghost-btn small danger" data-act="del-income" data-id="${i.id}" aria-label="Delete income">🗑</button>
@@ -949,6 +983,7 @@ function addIncome(ev) {
   const amount = parseFloat($('#income-amount').value);
   const date = $('#income-date').value || dashMonth + '-01';
   const repeat = $('#income-repeat').checked;
+  const daily = $('#income-daily').checked;
   if (!name) { sfx.error(); toast('Enter a source name', '⚠️'); return; }
   if (!(amount > 0)) { sfx.error(); toast('Amount must be more than 0', '⚠️'); return; }
   state.incomes.push({
@@ -956,14 +991,15 @@ function addIncome(ev) {
     createdAt: new Date().toISOString(),
     name,
     amount,
-    emoji: repeat ? '🔁' : '💰',
+    emoji: daily ? '🛵' : repeat ? '🔁' : '💰',
     date,
-    repeat
+    repeat,
+    daily
   });
   state.incomes = state.incomes.sort((a, b) => (a.date < b.date ? -1 : 1));
   saveData();
   sfx.coin();
-  toast(name + ' added to income', repeat ? '🔁' : '💰');
+  toast(name + ' added to income', daily ? '🛵' : repeat ? '🔁' : '💰');
   if (repeat) addPetXp(8);
   addPetXp(5);
   closeModal('#income-modal');
@@ -1175,6 +1211,17 @@ function setupEvents() {
     if (btn.dataset.act === 'edit') openExpenseModal(exp);
     else deleteExpense(exp);
   });
+
+  $('#home-list').addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-act]');
+    if (!btn) return;
+    const exp = state.expenses.find((x) => x.id === btn.dataset.id);
+    if (!exp) return;
+    if (btn.dataset.act === 'edit') openExpenseModal(exp);
+    else deleteExpense(exp);
+  });
+
+  $('#fab').addEventListener('click', () => openExpenseModal(null));
 
   $('#category-grid').addEventListener('click', (e) => {
     const card = e.target.closest('.cat-card');

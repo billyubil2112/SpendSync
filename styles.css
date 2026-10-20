@@ -41,6 +41,41 @@ body.sheet-open, body.modal-open { overflow: hidden; }
   padding: calc(24px + env(safe-area-inset-top, 0px)) 20px calc(var(--nav-h) + 40px + env(safe-area-inset-bottom, 0px));
 }
 
+/* ---------- FAB ---------- */
+.fab {
+  position: fixed; right: 18px;
+  bottom: calc(var(--nav-h) + 16px + env(safe-area-inset-bottom, 0px));
+  z-index: 55;
+  width: 58px; height: 58px; border-radius: 50%;
+  border: none; cursor: pointer;
+  font-size: 1.7rem; line-height: 1;
+  color: var(--card); background: var(--ink);
+  box-shadow: 0 6px 20px rgba(25, 25, 23, 0.25);
+  transition: transform 0.15s, background 0.15s;
+  font-family: var(--font);
+}
+.fab:hover { background: #33332f; transform: scale(1.05); }
+.fab:active { transform: scale(0.93); }
+body.modal-open .fab, body.sheet-open .fab { display: none; }
+@media (min-width: 1024px) {
+  .fab { bottom: 26px; right: 30px; }
+}
+
+/* ---------- Earned today line ---------- */
+.earned-line {
+  font-family: var(--mono); font-size: 0.8rem; font-weight: 400;
+  color: var(--green);
+  margin: -6px 0 14px;
+  border: 1px solid rgba(46, 139, 87, 0.3);
+  background: var(--green-tint);
+  border-radius: 8px;
+  padding: 7px 11px;
+}
+
+/* ---------- Income item (today list) ---------- */
+.txn-item.income .txn-ico { background: var(--green-tint); }
+.txn-item.income .txn-amt { color: var(--green); }
+
 /* ---------- Splash ---------- */
 .splash {
   position: fixed; inset: 0; z-index: 100;

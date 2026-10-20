@@ -136,6 +136,14 @@ function incomesInMonth(key) {
 function incomeForMonth(key) {
   return sum(incomesInMonth(key));
 }
+
+function dailyIncomeInMonth(key) {
+  return sum(incomesInMonth(key).filter((i) => i.daily));
+}
+
+function incomeForDay(dayStr) {
+  return sum(state.incomes.filter((i) => i.date === dayStr));
+}
 function sum(list) { return list.reduce((a, e) => a + (Number(e.amount) || 0), 0); }
 function esc(s) {
   return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -211,7 +219,7 @@ function normalizeState(raw) {
       budgetImpact: categorizeExpense(e.category)
     }, e)),
     pots: (d.pots || []).map((p) => Object.assign({ id: p.id || uid(), createdAt: p.createdAt || new Date().toISOString() }, p)),
-    incomes: (d.incomes || []).map((i) => Object.assign({ id: i.id || uid(), createdAt: i.createdAt || new Date().toISOString() }, i)),
+    incomes: (d.incomes || []).map((i) => Object.assign({ id: i.id || uid(), createdAt: i.createdAt || new Date().toISOString(), daily: false, repeat: false }, i)),
     pet: d.pet || { xp: 0 },
     awards: Array.isArray(d.awards) ? d.awards : []
   };

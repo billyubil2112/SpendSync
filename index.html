@@ -76,6 +76,7 @@
               <span id="home-used">—</span>
               <span id="home-left">—</span>
             </div>
+            <div class="earned-line" id="home-earned" hidden></div>
             <div class="stamp-row">
               <span class="stamp chip" id="streak-chip">🔥 <b id="streak-num">0</b> days on pace</span>
               <span class="stamp chip">🏦 <b id="capital-amt">RM 0</b> capital</span>
@@ -276,6 +277,9 @@
     </button>
   </nav>
 
+  <!-- ============ FAB: quick add expense ============ -->
+  <button id="fab" class="fab" aria-label="Add expense">＋</button>
+
   <!-- ============ CATEGORY DRILL-DOWN SHEET ============ -->
   <div class="sheet-backdrop" id="sheet-backdrop" hidden></div>
   <section class="bottom-sheet" id="category-sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-title">
@@ -407,6 +411,10 @@
             <input type="date" id="income-date" required />
           </label>
         </div>
+        <label class="switch-row">
+          <span>Daily income (e.g. Shopee delivery) 🛵</span>
+          <span class="switch"><input type="checkbox" id="income-daily" /><i></i></span>
+        </label>
         <label class="switch-row">
           <span>Repeat monthly</span>
           <span class="switch"><input type="checkbox" id="income-repeat" /><i></i></span>
